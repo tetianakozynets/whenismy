@@ -40,7 +40,7 @@ select throws_ok(
 select throws_ok(
   $$delete from public.notification_log
     where user_id = '00000000-0000-0000-0000-000000000001'$$,
-  'new row violates row-level security policy for table "notification_log"',
+  'permission denied for table "notification_log"',
   'user_a cannot delete from notification_log'
 );
 
