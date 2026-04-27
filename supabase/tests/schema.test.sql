@@ -36,5 +36,8 @@ select fk_ok('public', 'pickup_events',    'user_id', 'auth', 'users', 'id');
 select fk_ok('public', 'manual_schedules', 'user_id', 'auth', 'users', 'id');
 select fk_ok('public', 'notification_log', 'user_id', 'auth', 'users', 'id');
 
+-- increment_rate_limit function exists
+select has_function('public', 'increment_rate_limit', 'increment_rate_limit function exists');
+
 select * from finish();
 rollback;

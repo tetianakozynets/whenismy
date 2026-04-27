@@ -4,7 +4,7 @@ create extension if not exists pg_cron;
 -- user_preferences
 create table public.user_preferences (
   user_id                  uuid primary key references auth.users(id) on delete cascade,
-  street                   text not null,
+  street                   text not null, -- TODO: encrypt with pgsodium when Supabase Vault available (see spec security section)
   city                     text not null,
   state                    char(2) not null,
   recollect_place_id       text,
@@ -23,7 +23,7 @@ create table public.user_preferences (
 -- push_tokens (separate table — tokens never exposed via SELECT * on user_preferences)
 create table public.push_tokens (
   user_id          uuid primary key references auth.users(id) on delete cascade,
-  expo_push_token  text,
+  expo_push_token  text unique,
   updated_at       timestamptz not null default now()
 );
 
@@ -73,7 +73,7 @@ create table public.place_lookup_cache (
   cached_at            timestamptz not null default now()
 );
 
--- rate_limits
+-- rate_limits: old windows purged by pg_cron (see 20260427000004_cron.sql — add a purge job there)
 create table public.rate_limits (
   key          text not null,
   window_start timestamptz not null,
@@ -83,7 +83,10 @@ create table public.rate_limits (
 
 -- Rate limit increment function (atomic upsert, used by Edge Functions)
 create or replace function public.increment_rate_limit(p_key text, p_window timestamptz)
-returns int language plpgsql security definer as $$
+returns int language plpgsql
+security definer
+set search_path = public, pg_temp
+as $$
 declare
   v_count int;
 begin
