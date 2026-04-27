@@ -32,13 +32,22 @@ export async function getUsersForSlot(
 }
 
 async function handler(_req: Request): Promise<Response> {
-  const supabase = createClient(
-    Deno.env.get('SUPABASE_URL')!,
-    Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
-  )
+  const url = Deno.env.get('SUPABASE_URL')
+  const key = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
+  if (!url || !key) {
+    return new Response(JSON.stringify({ error: 'Missing Supabase env vars' }), { status: 500 })
+  }
 
+  const supabase = createClient(url, key)
   const slot = currentSlot()
-  const users = await getUsersForSlot(supabase, slot)
+
+  let users: Awaited<ReturnType<typeof getUsersForSlot>>
+  try {
+    users = await getUsersForSlot(supabase, slot)
+  } catch (err) {
+    console.error('Failed to fetch users for slot', err)
+    return new Response(JSON.stringify({ error: 'Failed to fetch users', slot }), { status: 500 })
+  }
 
   const after = new Date().toISOString().slice(0, 10)
   const before = new Date(Date.now() + 60 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10)
