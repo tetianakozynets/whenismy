@@ -40,7 +40,10 @@ async function handler(_req: Request): Promise<Response> {
   }
 
   const supabase = createClient(url, key)
+  const now = new Date()
+  const windowStart = new Date(now.getTime() - 30 * 60 * 1000).toISOString()
 
+  // Fetch users whose notify_at is in the past 30-min window and have a push token
   const { data: candidates, error } = await supabase
     .from('user_preferences')
     .select(`
@@ -50,22 +53,16 @@ async function handler(_req: Request): Promise<Response> {
       notifications_recycling,
       notifications_yard_waste,
       notify_at,
-      push_tokens!inner ( expo_push_token ),
-      pickup_events!inner ( event_type, event_date )
+      push_tokens ( expo_push_token ),
+      pickup_events ( event_type, event_date )
     `)
-    .not('push_tokens.expo_push_token', 'is', null)
-    .lte('notify_at', new Date().toISOString())
-    .gte('notify_at', new Date(Date.now() - 30 * 60 * 1000).toISOString())
+    .lte('notify_at', now.toISOString())
+    .gte('notify_at', windowStart)
 
   if (error) {
     console.error('Failed to fetch candidates', error)
     return new Response(JSON.stringify({ error: error.message }), { status: 500 })
   }
-
-  // NOTE: The full query with timezone-aware dedup is complex for the JS client.
-  // We use buildNotificationQuery() via a raw RPC for production.
-  // The supabase-js query above is a fallback approximation for development.
-  // In production, add a Postgres function that wraps buildNotificationQuery() and call it via rpc().
 
   if (!candidates || candidates.length === 0) {
     return new Response(JSON.stringify({ sent: 0 }), { status: 200 })
@@ -80,13 +77,36 @@ async function handler(_req: Request): Promise<Response> {
     const token = Array.isArray(tokens) ? tokens[0]?.expo_push_token : tokens?.expo_push_token
     if (!token) continue
 
+    // Today's date in user's local timezone (YYYY-MM-DD)
+    const localToday = now.toLocaleDateString('en-CA', { timeZone: user.timezone })
+    // Tomorrow's date in user's local timezone
+    const localTomorrow = new Date(now.getTime() + 24 * 60 * 60 * 1000)
+      .toLocaleDateString('en-CA', { timeZone: user.timezone })
+
+    // Fetch already-sent notifications for this user today (dedup)
+    const { data: alreadySent } = await supabase
+      .from('notification_log')
+      .select('event_type')
+      .eq('user_id', user.user_id)
+      .gte('sent_at', new Date(localToday).toISOString())
+      .lt('sent_at', new Date(localTomorrow).toISOString())
+
+    const alreadySentTypes = new Set((alreadySent ?? []).map((r: any) => r.event_type))
+
     for (const event of (Array.isArray(events) ? events : [events])) {
-      if (!event?.event_type) continue
+      if (!event?.event_type || !event?.event_date) continue
+
+      // Only notify for tomorrow's pickups
+      if (event.event_date !== localTomorrow) continue
+
       const enabled =
         (event.event_type === 'garbage' && user.notifications_garbage) ||
         (event.event_type === 'recycling' && user.notifications_recycling) ||
         (event.event_type === 'yard_waste' && user.notifications_yard_waste)
       if (!enabled) continue
+
+      // Skip if already notified today for this event type
+      if (alreadySentTypes.has(event.event_type)) continue
 
       messages.push(pickupNotificationMessage(event.event_type, token))
       meta.push({ user_id: user.user_id, event_type: event.event_type })
@@ -112,7 +132,11 @@ async function handler(_req: Request): Promise<Response> {
     expo_ticket_id: tickets[i]?.id ?? null,
   }))
 
-  await supabase.from('notification_log').insert(logRows)
+  try {
+    await supabase.from('notification_log').insert(logRows)
+  } catch (err) {
+    console.error('Failed to log notifications', err)
+  }
 
   const sent = logRows.filter(r => r.status === 'sent').length
   const failed = logRows.filter(r => r.status === 'failed').length
