@@ -78,7 +78,7 @@ git worktree add .worktrees/<branch-name> -b feature/<branch-name>
 | Plan | File | Status |
 |---|---|---|
 | 1 — Backend & Infrastructure | `docs/superpowers/plans/2026-04-27-backend-infrastructure.md` | ✅ merged |
-| 2 — Expo App: Core & Anonymous Flow | TBD | pending |
+| 2 — Expo App: Core & Anonymous Flow | `docs/superpowers/plans/2026-04-27-expo-core.md` | 🔄 in review |
 | 3 — Expo App: Auth, Notifications & Manual Entry | TBD | pending |
 
 ## Supabase deployment notes
