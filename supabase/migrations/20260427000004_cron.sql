@@ -63,6 +63,7 @@ select cron.schedule(
   $$delete from public.rate_limits where window_start < now() - interval '2 days'$$
 );
 
--- App config placeholders (update with real values via Supabase dashboard before first deploy)
-alter database postgres set "app.edge_function_base" = 'https://your-project.supabase.co/functions/v1';
-alter database postgres set "app.service_role_key" = 'your-service-role-key';
+-- NOTE: Before deploying to production, set these via Supabase dashboard → Settings → Database:
+--   ALTER DATABASE postgres SET "app.edge_function_base" = 'https://<project-ref>.supabase.co/functions/v1';
+--   ALTER DATABASE postgres SET "app.service_role_key" = '<your-service-role-key>';
+-- (ALTER DATABASE requires superuser; cannot run in migrations)
