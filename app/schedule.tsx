@@ -6,19 +6,20 @@ import { router } from 'expo-router'
 import { scheduleStore } from '../src/lib/schedule-store'
 import { NextPickupCard } from '../src/components/NextPickupCard'
 import { ScheduleList } from '../src/components/ScheduleList'
-import { colors, spacing } from '../src/constants/theme'
+import { colors, spacing, radius } from '../src/constants/theme'
 
 export default function ScheduleScreen() {
   const result = scheduleStore.get()
 
   useEffect(() => {
+    if (!result) router.replace('/')
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
     return () => scheduleStore.clear()
   }, [])
 
-  if (!result) {
-    router.replace('/')
-    return null
-  }
+  if (!result) return null
 
   const { events } = result
 
@@ -27,7 +28,7 @@ export default function ScheduleScreen() {
       <SafeAreaView style={styles.safe}>
         <View style={styles.empty}>
           <Text style={styles.emptyText}>No upcoming pickups found.</Text>
-          <Pressable onPress={() => router.back()}>
+          <Pressable onPress={() => router.back()} accessibilityRole="button">
             <Text style={styles.backLink}>← Change address</Text>
           </Pressable>
         </View>
@@ -38,7 +39,7 @@ export default function ScheduleScreen() {
   return (
     <SafeAreaView style={styles.safe}>
       <ScrollView contentContainerStyle={styles.scroll}>
-        <Pressable onPress={() => router.back()} style={styles.backRow}>
+        <Pressable onPress={() => router.back()} style={styles.backRow} accessibilityRole="button">
           <Text style={styles.backLink}>← Change address</Text>
         </Pressable>
         <NextPickupCard event={events[0]} />
@@ -51,7 +52,7 @@ export default function ScheduleScreen() {
         <Text style={styles.disclaimer}>
           Schedules may shift on public holidays — check your municipality's website.
         </Text>
-        <Pressable style={styles.upsellBanner}>
+        <Pressable style={styles.upsellBanner} accessibilityRole="button">
           <Text style={styles.upsellText}>
             Get reminders the night before pickup — Sign in →
           </Text>
@@ -64,7 +65,7 @@ export default function ScheduleScreen() {
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.background },
   scroll: { padding: spacing.lg, gap: spacing.lg },
-  backRow: { paddingVertical: 4 },
+  backRow: { paddingVertical: spacing.xs },
   backLink: { color: colors.primary, fontSize: 15 },
   sectionHeader: {
     fontSize: 11,
@@ -83,7 +84,7 @@ const styles = StyleSheet.create({
   upsellBanner: {
     backgroundColor: colors.primary,
     padding: spacing.md,
-    borderRadius: 8,
+    borderRadius: radius.sm,
     alignItems: 'center',
   },
   upsellText: { color: '#fff', fontSize: 14, fontWeight: '500' },

@@ -26,7 +26,7 @@ export default function HomeScreen() {
         }
         return
       }
-      if (result.multiple && result.multiple.length > 1) {
+      if (result.multiple && result.multiple.length >= 1) {
         scheduleStore.set(result)
         setMatches(result.multiple)
         return

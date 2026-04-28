@@ -14,7 +14,7 @@ export default function AddressNotFoundScreen() {
           We couldn't find pickup schedule data for your address. Your municipality
           may not be covered yet.
         </Text>
-        <Pressable style={styles.button} onPress={() => router.back()}>
+        <Pressable style={styles.button} onPress={() => router.back()} accessibilityRole="button">
           <Text style={styles.buttonText}>Try a different address</Text>
         </Pressable>
         <Text style={styles.note}>
