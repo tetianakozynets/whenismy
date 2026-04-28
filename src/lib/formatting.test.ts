@@ -21,14 +21,20 @@ describe('formatPickupDate', () => {
 })
 
 describe('daysUntil', () => {
+  function localDateStr(offsetDays = 0): string {
+    const d = new Date()
+    d.setHours(0, 0, 0, 0)
+    d.setDate(d.getDate() + offsetDays)
+    const pad = (n: number) => String(n).padStart(2, '0')
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
+  }
+
   it('returns 0 for today', () => {
-    const today = new Date().toISOString().slice(0, 10)
-    expect(daysUntil(today)).toBe(0)
+    expect(daysUntil(localDateStr(0))).toBe(0)
   })
 
   it('returns 1 for tomorrow', () => {
-    const tomorrow = new Date(Date.now() + 86400_000).toISOString().slice(0, 10)
-    expect(daysUntil(tomorrow)).toBe(1)
+    expect(daysUntil(localDateStr(1))).toBe(1)
   })
 })
 

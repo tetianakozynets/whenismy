@@ -26,8 +26,9 @@ export function daysUntil(dateStr: string): number {
   const today = new Date()
   today.setHours(0, 0, 0, 0)
 
-  // Parse the date string as UTC midnight
-  const pickup = new Date(dateStr + 'T00:00:00Z')
+  // Parse the date string as local midnight (no Z suffix) so comparison
+  // is timezone-consistent with the local today value above.
+  const pickup = new Date(dateStr + 'T00:00:00')
 
   // Calculate the difference in days
   const diffMs = pickup.getTime() - today.getTime()
