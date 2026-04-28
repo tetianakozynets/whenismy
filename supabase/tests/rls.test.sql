@@ -37,11 +37,17 @@ select throws_ok(
   'user_a cannot insert into notification_log'
 );
 
-select throws_ok(
-  $$delete from public.notification_log
-    where user_id = '00000000-0000-0000-0000-000000000001'$$,
-  'permission denied for table "notification_log"',
-  'user_a cannot delete from notification_log'
+-- RLS with only SELECT policy causes DELETE to silently affect 0 rows (no exception)
+select results_eq(
+  $$
+    with d as (
+      delete from public.notification_log
+      where user_id = '00000000-0000-0000-0000-000000000001'
+      returning user_id
+    ) select count(*)::int from d
+  $$,
+  array[0],
+  'user_a delete from notification_log affects 0 rows (silently blocked)'
 );
 
 select results_eq(
@@ -66,11 +72,13 @@ select results_eq(
 );
 
 -- ── place_lookup_cache: anyone can read ────────────────────────────
+-- Reset to service role to insert (only service role can write cache)
+set local role postgres;
 insert into public.place_lookup_cache
   (address_key, recollect_place_id, latitude, longitude, timezone, supported_event_types)
   values ('test|cache|ny', 'place-1', 40.7, -74.0, 'America/New_York', '{garbage}');
 
--- (reset to anon role)
+-- Switch to anon role
 set local role anon;
 set local "request.jwt.claims" = '{}';
 

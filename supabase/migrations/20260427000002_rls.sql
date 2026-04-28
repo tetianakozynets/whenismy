@@ -30,4 +30,5 @@ create policy "users_read_own_logs" on public.notification_log
 create policy "anyone_read_cache" on public.place_lookup_cache
   for select using (true);
 
--- rate_limits: no end-user access (service role bypasses RLS)
+-- rate_limits: no end-user access — revoke default grants so SELECT throws permission denied
+revoke all on public.rate_limits from anon, authenticated;

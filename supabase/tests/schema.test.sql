@@ -21,7 +21,16 @@ select col_has_check('public', 'manual_schedules', 'pickup_day', 'manual_schedul
 select col_has_check('public', 'manual_schedules', 'event_type', 'manual_schedules.event_type has check constraint');
 
 -- biweekly anchor_date constraint exists
-select has_check('public', 'manual_schedules', 'biweekly_requires_anchor', 'biweekly requires anchor_date');
+select ok(
+  exists(
+    select 1 from information_schema.table_constraints
+    where table_schema = 'public'
+      and table_name = 'manual_schedules'
+      and constraint_name = 'biweekly_requires_anchor'
+      and constraint_type = 'CHECK'
+  ),
+  'biweekly requires anchor_date'
+);
 
 -- notification_log: check on status
 select col_has_check('public', 'notification_log', 'status', 'notification_log.status has check');
