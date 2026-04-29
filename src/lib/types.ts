@@ -1,15 +1,17 @@
 export interface PlaceInfo {
   address_key: string
-  recollect_place_id: string
-  latitude: number
-  longitude: number
-  timezone: string
+  recollect_place_id: string | null
+  latitude: number | null
+  longitude: number | null
+  timezone: string | null
   supported_event_types: string[]
+  provider: 'nyc-dsny' | 'recollect-ical' | 'recollect' | null
+  ical_url?: string
 }
 
 export interface PickupEvent {
   date: string        // YYYY-MM-DD
-  event_type: string  // 'garbage' | 'recycling' | 'yard_waste'
+  event_type: string  // 'garbage' | 'recycling' | 'yard_waste' | 'organics'
 }
 
 export interface PlaceMatch {
@@ -29,4 +31,5 @@ export interface LookupResponse {
 export interface LookupError {
   error: string
   notFound?: boolean
+  suggestUrl?: boolean
 }
