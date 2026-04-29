@@ -1,5 +1,13 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
-import { getEvents, normalizeEventType } from '../_shared/recollect.ts'
+import { getEvents, normalizeEventType, parseIcalUrl, getEventsForPlace } from '../_shared/recollect.ts'
+
+interface UserPreferenceRow {
+  user_id: string
+  recollect_place_id: string | null
+  supported_event_types: string[] | null
+  provider: string | null
+  ical_url: string | null
+}
 
 // 336 slots = 30-min slots per week (7 days × 48 slots/day)
 export function slotForUser(userId: string): number {
@@ -18,17 +26,19 @@ function currentSlot(): number {
   return Math.floor(minutesSinceMonday / 30)
 }
 
+// deno-lint-ignore no-explicit-any
 export async function getUsersForSlot(
-  supabase: ReturnType<typeof createClient>,
+  supabase: ReturnType<typeof createClient<any>>,
   slot: number
-) {
+): Promise<UserPreferenceRow[]> {
   const { data, error } = await supabase
     .from('user_preferences')
-    .select('user_id, recollect_place_id, supported_event_types')
-    .not('recollect_place_id', 'is', null)
+    .select('user_id, recollect_place_id, supported_event_types, provider, ical_url')
+    .or('recollect_place_id.not.is.null,provider.eq.nyc-dsny,provider.eq.recollect-ical')
 
   if (error) throw error
-  return (data ?? []).filter(u => slotForUser(u.user_id) === slot)
+  const rows = (data ?? []) as UserPreferenceRow[]
+  return rows.filter(u => slotForUser(u.user_id) === slot)
 }
 
 async function handler(_req: Request): Promise<Response> {
@@ -41,7 +51,7 @@ async function handler(_req: Request): Promise<Response> {
   const supabase = createClient(url, key)
   const slot = currentSlot()
 
-  let users: Awaited<ReturnType<typeof getUsersForSlot>>
+  let users: UserPreferenceRow[]
   try {
     users = await getUsersForSlot(supabase, slot)
   } catch (err) {
@@ -49,21 +59,45 @@ async function handler(_req: Request): Promise<Response> {
     return new Response(JSON.stringify({ error: 'Failed to fetch users', slot }), { status: 500 })
   }
 
-  const after = new Date().toISOString().slice(0, 10)
-  const before = new Date(Date.now() + 60 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10)
-
   let refreshed = 0
   let errors = 0
 
   for (const user of users) {
     try {
-      const events = await getEvents(user.recollect_place_id, after, before)
+      const after = new Date().toISOString().slice(0, 10)
+      const before = new Date(Date.now() + 60 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10)
+
+      if (user.provider === 'nyc-dsny') {
+        // NYC DSNY schedules are stable week-to-week (they change annually).
+        // Events are regenerated on-demand by lookup-schedule. No re-fetch needed.
+        refreshed++
+        continue
+      }
+
+      let events: Array<{ date: string; event_type: string }> = []
+      const source = user.provider === 'nyc-dsny' ? 'nyc-dsny' : 'recollect'
+
+      if (user.provider === 'recollect-ical' && user.ical_url) {
+        const parts = parseIcalUrl(user.ical_url)
+        if (!parts) { errors++; continue }
+        const rawEvents = await getEventsForPlace(parts.placeId, parts.serviceId, after, before)
+        events = rawEvents.map(e => ({ date: e.date, event_type: e.event_type }))
+      } else if (user.recollect_place_id) {
+        const rawEvents = await getEvents(user.recollect_place_id, after, before)
+        events = rawEvents.map(e => ({
+          date: e.date,
+          event_type: normalizeEventType(e.event_type),
+        }))
+      } else {
+        refreshed++
+        continue
+      }
 
       const rows = events.map(e => ({
         user_id: user.user_id,
         event_date: e.date,
-        event_type: normalizeEventType(e.event_type),
-        source: 'recollect' as const,
+        event_type: e.event_type,
+        source,
         refreshed_at: new Date().toISOString(),
       }))
 
@@ -71,7 +105,7 @@ async function handler(_req: Request): Promise<Response> {
         .from('pickup_events')
         .delete()
         .eq('user_id', user.user_id)
-        .eq('source', 'recollect')
+        .eq('source', source)
         .lt('event_date', after)
 
       if (rows.length > 0) {
