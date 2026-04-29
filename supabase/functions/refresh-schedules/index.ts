@@ -75,7 +75,7 @@ async function handler(_req: Request): Promise<Response> {
       }
 
       let events: Array<{ date: string; event_type: string }> = []
-      const source = user.provider === 'nyc-dsny' ? 'nyc-dsny' : 'recollect'
+      const source = 'recollect'
 
       if (user.provider === 'recollect-ical' && user.ical_url) {
         const parts = parseIcalUrl(user.ical_url)

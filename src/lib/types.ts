@@ -31,5 +31,4 @@ export interface LookupResponse {
 export interface LookupError {
   error: string
   notFound?: boolean
-  suggestUrl?: boolean
 }

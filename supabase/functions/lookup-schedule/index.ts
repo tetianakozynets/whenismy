@@ -103,10 +103,10 @@ export async function handler(req: Request): Promise<Response> {
   // ── NYC DSNY ───────────────────────────────────────────────────────────────
   if (isNYCAddress(city!, state!)) {
     const coords = await geocodeNYC(street!, city!, state!)
-    if (!coords) return json({ error: 'Address not found', notFound: true, suggestUrl: false }, 404)
+    if (!coords) return json({ error: 'Address not found', notFound: true }, 404)
 
     const zone = await lookupDSNYZone(coords.lat, coords.lng)
-    if (!zone) return json({ error: 'Address not in NYC schedule zones', notFound: true, suggestUrl: false }, 404)
+    if (!zone) return json({ error: 'Address not in NYC schedule zones', notFound: true }, 404)
 
     const timezone = timezoneFromLatLng(coords.lat, coords.lng)
     const supportedTypes = ['garbage', 'recycling']
@@ -132,7 +132,7 @@ export async function handler(req: Request): Promise<Response> {
   }
 
   // ── Not covered ────────────────────────────────────────────────────────────
-  return json({ error: 'Address not found', notFound: true, suggestUrl: true }, 404)
+  return json({ error: 'Address not found', notFound: true }, 404)
 }
 
 async function eventsFromCache(
