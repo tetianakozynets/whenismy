@@ -1,5 +1,5 @@
 begin;
-select plan(22);
+select plan(26);
 
 -- Tables exist
 select has_table('public', 'user_preferences',    'user_preferences table exists');
@@ -47,6 +47,11 @@ select fk_ok('public', 'notification_log', 'user_id', 'auth', 'users', 'id');
 
 -- increment_rate_limit function exists
 select has_function('public', 'increment_rate_limit', 'increment_rate_limit function exists');
+
+select has_column('public', 'place_lookup_cache', 'provider',      'place_lookup_cache.provider');
+select has_column('public', 'place_lookup_cache', 'provider_data', 'place_lookup_cache.provider_data');
+select has_column('public', 'user_preferences',   'provider',      'user_preferences.provider');
+select has_column('public', 'user_preferences',   'ical_url',      'user_preferences.ical_url');
 
 select * from finish();
 rollback;
