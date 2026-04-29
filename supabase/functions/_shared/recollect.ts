@@ -57,3 +57,45 @@ export function normalizeEventType(raw: string): string {
   if (lower.includes('yard') || lower.includes('green')) return 'yard_waste'
   return 'garbage'
 }
+
+// ── iCal URL parsing (no API key required) ───────────────────────────────────
+
+export interface IcalUrlParts {
+  placeId: string
+  serviceId: string
+}
+
+export function parseIcalUrl(url: string): IcalUrlParts | null {
+  const match = url.match(
+    /\/places\/([0-9A-F-]{36})\/services\/(\d+)\//i
+  )
+  if (!match) return null
+  return { placeId: match[1].toUpperCase(), serviceId: match[2] }
+}
+
+export async function getEventsForPlace(
+  placeId: string,
+  serviceId: string,
+  after: string,
+  before: string
+): Promise<RecollectEvent[]> {
+  const url = `https://api.recollect.net/api/places/${placeId}/services/${serviceId}/events` +
+    `?after=${after}&before=${before}`
+  const res = await fetch(url)
+  if (!res.ok) throw new Error(`Recollect place events failed: ${res.status}`)
+  const data = await res.json()
+  const rawEvents = Array.isArray(data) ? data : (data.events ?? [])
+
+  const result: RecollectEvent[] = []
+  for (const ev of rawEvents) {
+    for (const flag of (ev.flags ?? [])) {
+      if (flag.event_type === 'pickup') {
+        result.push({
+          date: ev.day,
+          event_type: normalizeEventType(flag.name ?? ''),
+        })
+      }
+    }
+  }
+  return result
+}
