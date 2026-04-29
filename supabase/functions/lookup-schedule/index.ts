@@ -5,7 +5,7 @@ import {
   isNYCAddress, geocodeNYC, lookupDSNYZone, generateDSNYEvents,
 } from '../_shared/nyc-dsny.ts'
 import {
-  parseIcalUrl, getEventsForPlace, normalizeEventType,
+  parseIcalUrl, getEventsForPlace, getEvents, normalizeEventType,
 } from '../_shared/recollect.ts'
 
 export function normalizeAddress(street: string, city: string, state: string): string {
@@ -147,12 +147,23 @@ async function eventsFromCache(
       event_type: e.event_type,
     }))
   }
-  if (cached.provider === 'recollect-ical' || cached.provider === 'recollect') {
+
+  if (cached.provider === 'recollect-ical') {
     const pd = cached.provider_data as { place_id: string; service_id: string } | null
     if (pd?.place_id && pd?.service_id) {
       return getEventsForPlace(pd.place_id, pd.service_id, after, before)
     }
   }
+
+  // Original recollect rows (provider = 'recollect' or null) store place ID in
+  // recollect_place_id column, not in provider_data. Use authenticated getEvents.
+  if (cached.provider === 'recollect' || !cached.provider) {
+    const placeId = cached.recollect_place_id as string | null
+    if (placeId) {
+      return getEvents(placeId, after, before)
+    }
+  }
+
   return []
 }
 

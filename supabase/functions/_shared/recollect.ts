@@ -89,7 +89,7 @@ export async function getEventsForPlace(
   const result: RecollectEvent[] = []
   for (const ev of rawEvents) {
     for (const flag of (ev.flags ?? [])) {
-      if (flag.event_type === 'pickup') {
+      if (flag.event_type === 'pickup' || flag.event_type === 'collection') {
         result.push({
           date: ev.day,
           event_type: normalizeEventType(flag.name ?? ''),

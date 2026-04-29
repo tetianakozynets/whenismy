@@ -23,3 +23,10 @@ alter table public.pickup_events
 alter table public.pickup_events
   add constraint pickup_events_source_check
   check (source in ('recollect', 'manual', 'nyc-dsny'));
+
+-- NYC DSNY and Recollect iCal rows do not have all of these fields set
+alter table public.place_lookup_cache
+  alter column recollect_place_id drop not null,
+  alter column latitude            drop not null,
+  alter column longitude           drop not null,
+  alter column timezone            drop not null;

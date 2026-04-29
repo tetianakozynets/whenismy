@@ -1,7 +1,33 @@
 const NYC_CITIES = new Set([
-  'new york', 'manhattan', 'brooklyn', 'bronx', 'queens', 'staten island',
+  // Official borough names + aliases
+  'new york', 'new york city', 'nyc', 'manhattan', 'brooklyn', 'bronx', 'queens', 'staten island',
+  // Manhattan neighborhoods
+  'harlem', 'east harlem', 'washington heights', 'inwood', 'upper west side',
+  'upper east side', 'midtown', 'chelsea', 'tribeca', 'soho', 'noho', 'nolita',
+  'greenwich village', 'east village', 'lower east side', 'financial district',
+  'battery park city', 'two bridges', 'chinatown', 'little italy', 'hell\'s kitchen',
+  'murray hill', 'gramercy', 'flatiron', 'morningside heights', 'hamilton heights',
+  // Brooklyn neighborhoods
+  'williamsburg', 'bushwick', 'park slope', 'crown heights', 'bedford-stuyvesant',
+  'bed-stuy', 'sunset park', 'bensonhurst', 'sheepshead bay', 'canarsie',
+  'east new york', 'brownsville', 'flatbush', 'flatlands', 'borough park',
+  'bay ridge', 'red hook', 'dumbo', 'cobble hill', 'carroll gardens',
+  'boerum hill', 'fort greene', 'clinton hill', 'prospect heights', 'greenpoint',
+  'brighton beach', 'coney island', 'dyker heights', 'bath beach',
+  // Queens neighborhoods
   'flushing', 'jamaica', 'astoria', 'bayside', 'ridgewood', 'forest hills',
-  'jackson heights', 'long island city', 'bay ridge', 'flatbush',
+  'jackson heights', 'long island city', 'woodside', 'elmhurst', 'sunnyside',
+  'maspeth', 'corona', 'rego park', 'kew gardens', 'briarwood', 'fresh meadows',
+  'hollis', 'st. albans', 'saint albans', 'richmond hill', 'ozone park',
+  'south ozone park', 'woodhaven', 'howard beach', 'rosedale',
+  'springfield gardens', 'cambria heights', 'far rockaway', 'rockaway',
+  // Bronx neighborhoods
+  'riverdale', 'fordham', 'tremont', 'mott haven', 'south bronx', 'hunts point',
+  'highbridge', 'concourse', 'belmont', 'morris park', 'pelham bay',
+  'throggs neck', 'city island', 'wakefield', 'williamsbridge',
+  // Staten Island neighborhoods
+  'richmond', 'st george', 'saint george', 'new dorp', 'tottenville',
+  'stapleton', 'port richmond', 'west brighton', 'great kills',
 ])
 
 export function isNYCAddress(city: string, state: string): boolean {
