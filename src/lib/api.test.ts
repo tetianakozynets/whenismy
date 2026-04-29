@@ -1,4 +1,4 @@
-import { lookupSchedule, isError } from './api'
+import { lookupSchedule, isError, lookupByCalendarUrl } from './api'
 
 const mockPlace = {
   address_key: '123 main|springfield|ny',
@@ -60,6 +60,29 @@ describe('lookupSchedule', () => {
         method: 'POST',
         body: JSON.stringify({ street: '123 Main', city: 'Springfield', state: 'NY' }),
       })
+    )
+  })
+})
+
+describe('lookupByCalendarUrl', () => {
+  it('posts ical_url and returns LookupResponse on success', async () => {
+    const mockResponse = {
+      place: {
+        address_key: 'ical:BCCDF30E:208',
+        recollect_place_id: 'BCCDF30E',
+        provider: 'recollect-ical',
+        latitude: null, longitude: null, timezone: null,
+        supported_event_types: ['garbage'],
+      },
+      events: [{ date: '2026-05-01', event_type: 'garbage' }],
+    }
+    ;(fetch as jest.Mock).mockResolvedValueOnce({ json: () => Promise.resolve(mockResponse) })
+    const url = 'https://recollect.a.ssl.fastly.net/api/places/BCCDF30E-578B-11E4-AD38-5839C200407A/services/208/events.en.ics'
+    const result = await lookupByCalendarUrl(url)
+    expect(isError(result)).toBe(false)
+    expect(fetch).toHaveBeenCalledWith(
+      expect.stringContaining('/functions/v1/lookup-schedule'),
+      expect.objectContaining({ body: JSON.stringify({ ical_url: url }) })
     )
   })
 })

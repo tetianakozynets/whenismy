@@ -42,6 +42,16 @@ export default function ScheduleScreen() {
         <Pressable onPress={() => router.back()} style={styles.backRow} accessibilityRole="button">
           <Text style={styles.backLink}>← Change address</Text>
         </Pressable>
+        {result.place.provider === 'nyc-dsny' && (
+          <View style={styles.providerBadge}>
+            <Text style={styles.providerText}>🗽 NYC official schedule</Text>
+          </View>
+        )}
+        {result.place.provider === 'recollect-ical' && (
+          <View style={styles.providerBadge}>
+            <Text style={styles.providerText}>📅 Calendar subscription</Text>
+          </View>
+        )}
         <NextPickupCard event={events[0]} />
         {events.length > 1 && (
           <>
@@ -88,4 +98,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   upsellText: { color: '#fff', fontSize: 14, fontWeight: '500' },
+  providerBadge: {
+    backgroundColor: colors.border,
+    borderRadius: radius.sm,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
+    alignSelf: 'flex-start',
+  },
+  providerText: { fontSize: 12, color: colors.textSecondary },
 })
