@@ -6,6 +6,7 @@ export default function RootLayout() {
       <Stack.Screen name="index" />
       <Stack.Screen name="schedule" />
       <Stack.Screen name="address-not-found" />
+      <Stack.Screen name="calendar-url" />
     </Stack>
   )
 }
