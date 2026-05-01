@@ -51,6 +51,9 @@ export default function HomeScreen() {
   function handleMatchSelect(_match: PlaceMatch) {
     setMatches(null)
     if (isSplit) {
+      // Plan 2 limitation: the lookup-schedule Edge Function returns events for places[0]
+      // regardless of which match the user selects. A proper re-fetch by place ID
+      // requires extending the Edge Function to accept a placeId param (Plan 3+).
       const stored = scheduleStore.get()
       if (stored) setResult(stored)
     } else {
@@ -60,6 +63,7 @@ export default function HomeScreen() {
 
   function handleReset() {
     setResult(null)
+    setMatches(null)
     setResetKey(k => k + 1)
   }
 

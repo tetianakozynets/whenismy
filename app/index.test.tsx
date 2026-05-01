@@ -30,6 +30,8 @@ const mockResult = {
 beforeEach(() => {
   jest.clearAllMocks()
   scheduleStore.clear()
+  const { useSplitLayout } = require('../src/lib/use-split-layout')
+  useSplitLayout.mockReturnValue(false)
 })
 
 it('navigates to /schedule and saves result to store on success (narrow)', async () => {
@@ -79,4 +81,6 @@ it('does not navigate on success when in split layout (wide screen)', async () =
   })
   const { router } = require('expo-router')
   expect(router.push).not.toHaveBeenCalledWith('/schedule')
+  // On wide screens setResult is called directly; scheduleStore is NOT populated
+  expect(scheduleStore.get()).toBeNull()
 })
