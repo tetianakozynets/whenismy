@@ -2,12 +2,12 @@ export const colors = {
   garbage: '#6B7280',
   recycling: '#10B981',
   yard_waste: '#84CC16',
-  background: '#F9FAFB',
-  card: '#FFFFFF',
-  primary: '#2563EB',
-  text: '#111827',
-  textSecondary: '#6B7280',
-  border: '#E5E7EB',
+  background: '#0d0d1a',
+  card: '#1a1a2e',
+  primary: '#e94560',
+  text: '#FFFFFF',
+  textSecondary: '#888888',
+  border: '#2a2a4a',
   error: '#EF4444',
 }
 
@@ -24,3 +24,5 @@ export const radius = {
   md: 12,
   lg: 20,
 }
+
+export const SPLIT_BREAKPOINT = 768

@@ -36,6 +36,7 @@ export function AddressForm({ onSubmit, loading }: Props) {
       <TextInput
         style={styles.input}
         placeholder="Street address"
+        placeholderTextColor={colors.textSecondary}
         value={street}
         onChangeText={setStreet}
         testID="input-street"
@@ -45,6 +46,7 @@ export function AddressForm({ onSubmit, loading }: Props) {
       <TextInput
         style={styles.input}
         placeholder="City"
+        placeholderTextColor={colors.textSecondary}
         value={city}
         onChangeText={setCity}
         testID="input-city"
@@ -54,6 +56,7 @@ export function AddressForm({ onSubmit, loading }: Props) {
       <TextInput
         style={styles.input}
         placeholder="State (e.g. NY)"
+        placeholderTextColor={colors.textSecondary}
         value={state}
         onChangeText={setState}
         testID="input-state"
@@ -90,6 +93,7 @@ const styles = StyleSheet.create({
     padding: spacing.md,
     fontSize: 16,
     backgroundColor: colors.card,
+    color: colors.text,
   },
   error: { color: colors.error, fontSize: 14 },
   button: {
