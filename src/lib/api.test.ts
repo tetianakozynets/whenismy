@@ -23,6 +23,7 @@ afterEach(() => jest.clearAllMocks())
 describe('lookupSchedule', () => {
   it('returns LookupResponse on success', async () => {
     ;(fetch as jest.Mock).mockResolvedValueOnce({
+      ok: true,
       json: () => Promise.resolve({ place: mockPlace, events: mockEvents }),
     })
     const result = await lookupSchedule('123 Main', 'Springfield', 'NY')
@@ -34,6 +35,7 @@ describe('lookupSchedule', () => {
 
   it('returns LookupError with notFound=true on 404', async () => {
     ;(fetch as jest.Mock).mockResolvedValueOnce({
+      ok: true,
       json: () => Promise.resolve({ error: 'Address not found', notFound: true }),
     })
     const result = await lookupSchedule('99 Unknown St', 'Nowhere', 'XX')
@@ -43,6 +45,7 @@ describe('lookupSchedule', () => {
 
   it('returns LookupError on server error', async () => {
     ;(fetch as jest.Mock).mockResolvedValueOnce({
+      ok: true,
       json: () => Promise.resolve({ error: 'Schedule data unavailable' }),
     })
     const result = await lookupSchedule('1 Main', 'City', 'CA')
@@ -51,6 +54,7 @@ describe('lookupSchedule', () => {
 
   it('calls the correct URL with POST + JSON body', async () => {
     ;(fetch as jest.Mock).mockResolvedValueOnce({
+      ok: true,
       json: () => Promise.resolve({ place: mockPlace, events: [] }),
     })
     await lookupSchedule('123 Main', 'Springfield', 'NY')
@@ -76,7 +80,7 @@ describe('lookupByCalendarUrl', () => {
       },
       events: [{ date: '2026-05-01', event_type: 'garbage' }],
     }
-    ;(fetch as jest.Mock).mockResolvedValueOnce({ json: () => Promise.resolve(mockResponse) })
+    ;(fetch as jest.Mock).mockResolvedValueOnce({ ok: true, json: () => Promise.resolve(mockResponse) })
     const url = 'https://recollect.a.ssl.fastly.net/api/places/BCCDF30E-578B-11E4-AD38-5839C200407A/services/208/events.en.ics'
     const result = await lookupByCalendarUrl(url)
     expect(isError(result)).toBe(false)

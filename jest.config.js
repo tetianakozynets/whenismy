@@ -6,5 +6,6 @@ module.exports = {
   testPathIgnorePatterns: [
     '/node_modules/',
     '/supabase/',
+    '/.worktrees/',
   ],
 }

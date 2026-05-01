@@ -11,7 +11,7 @@ interface Props {
 }
 
 export function ScheduleContent({ result, onBack }: Props) {
-  const { events, place } = result
+  const { events = [], place } = result
 
   if (events.length === 0) {
     return (
