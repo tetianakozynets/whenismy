@@ -21,3 +21,8 @@ it('renders unknown types with title-cased label', () => {
   const { getByText } = render(<EventTypeBadge eventType="bulk_pickup" />)
   expect(getByText('Bulk Pickup')).toBeTruthy()
 })
+
+it('renders emoji icon alongside the label', () => {
+  const { getByText } = render(<EventTypeBadge eventType="garbage" />)
+  expect(getByText('🗑️')).toBeTruthy()
+})
