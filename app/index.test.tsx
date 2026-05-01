@@ -4,9 +4,12 @@ import HomeScreen from './index'
 import * as api from '../src/lib/api'
 import { scheduleStore } from '../src/lib/schedule-store'
 
-// Mock expo-router navigation
 jest.mock('expo-router', () => ({
   router: { push: jest.fn(), back: jest.fn(), replace: jest.fn() },
+}))
+
+jest.mock('../src/lib/use-split-layout', () => ({
+  useSplitLayout: jest.fn().mockReturnValue(false),
 }))
 
 jest.spyOn(api, 'lookupSchedule')
@@ -19,6 +22,7 @@ const mockResult = {
     longitude: -74.0,
     timezone: 'America/New_York',
     supported_event_types: ['garbage'],
+    provider: 'recollect' as const,
   },
   events: [{ date: '2026-04-28', event_type: 'garbage' }],
 }
@@ -28,7 +32,7 @@ beforeEach(() => {
   scheduleStore.clear()
 })
 
-it('navigates to /schedule and saves result to store on success', async () => {
+it('navigates to /schedule and saves result to store on success (narrow)', async () => {
   ;(api.lookupSchedule as jest.Mock).mockResolvedValueOnce(mockResult)
   const { getByTestId } = render(<HomeScreen />)
   fireEvent.changeText(getByTestId('input-street'), '123 Main St')
@@ -58,4 +62,21 @@ it('navigates to /address-not-found when address is not found', async () => {
     const { router } = require('expo-router')
     expect(router.push).toHaveBeenCalledWith('/address-not-found')
   })
+})
+
+it('does not navigate on success when in split layout (wide screen)', async () => {
+  const { useSplitLayout } = require('../src/lib/use-split-layout')
+  useSplitLayout.mockReturnValue(true)
+  ;(api.lookupSchedule as jest.Mock).mockResolvedValueOnce(mockResult)
+  const { getByTestId } = render(<HomeScreen />)
+  fireEvent.changeText(getByTestId('input-street'), '123 Main St')
+  fireEvent.changeText(getByTestId('input-city'), 'Springfield')
+  fireEvent.changeText(getByTestId('input-state'), 'NY')
+  fireEvent.press(getByTestId('submit-button'))
+
+  await waitFor(() => {
+    expect(api.lookupSchedule).toHaveBeenCalled()
+  })
+  const { router } = require('expo-router')
+  expect(router.push).not.toHaveBeenCalledWith('/schedule')
 })
