@@ -1,6 +1,8 @@
 export const colors = {
-  garbage: '#6B7280',
-  recycling: '#10B981',
+  garbage: '#374151',
+  organics: '#92400E',
+  bulk_waste: '#3B4A6B',
+  recycling: '#065F46',
   yard_waste: '#84CC16',
   background: '#0d0d1a',
   card: '#1a1a2e',

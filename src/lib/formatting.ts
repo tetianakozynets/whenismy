@@ -2,6 +2,8 @@ const EVENT_LABELS: Record<string, string> = {
   garbage: 'Garbage',
   recycling: 'Recycling',
   yard_waste: 'Yard Waste',
+  organics: 'Composting',
+  bulk_waste: 'Large Items',
 }
 
 export function eventTypeLabel(eventType: string): string {

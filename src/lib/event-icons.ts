@@ -1,8 +1,9 @@
 const EVENT_ICONS: Record<string, string> = {
   garbage: '🗑️',
   recycling: '♻️',
-  yard_waste: '🌿',
+  yard_waste: '🍂',
   bulk_waste: '📦',
+  organics: '🍌',
 }
 
 export function eventTypeIcon(eventType: string): string {

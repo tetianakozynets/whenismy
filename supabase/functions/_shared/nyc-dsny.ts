@@ -134,6 +134,7 @@ export function generateDSNYEvents(
   addEvents(zone.freq_refuse, 'garbage')
   addEvents(zone.freq_recycling, 'recycling')
   addEvents(zone.freq_organics, 'organics')
+  addEvents(zone.freq_bulk, 'bulk_waste')
   events.sort((a, b) => a.event_date.localeCompare(b.event_date))
   return events
 }

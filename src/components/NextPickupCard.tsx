@@ -1,5 +1,5 @@
 import React from 'react'
-import { Text, StyleSheet } from 'react-native'
+import { View, Text, StyleSheet } from 'react-native'
 import { LinearGradient } from 'expo-linear-gradient'
 import { PickupEvent } from '../lib/types'
 import { EventTypeBadge } from './EventTypeBadge'
@@ -8,11 +8,12 @@ import { formatPickupDate, daysUntil, daysUntilLabel } from '../lib/formatting'
 import { spacing, radius } from '../constants/theme'
 
 interface Props {
-  event: PickupEvent
+  events: PickupEvent[]
 }
 
-export function NextPickupCard({ event }: Props) {
-  const days = daysUntil(event.date)
+export function NextPickupCard({ events }: Props) {
+  const first = events[0]
+  const days = daysUntil(first.date)
   return (
     <LinearGradient
       colors={['#e94560', '#c0392b']}
@@ -20,10 +21,18 @@ export function NextPickupCard({ event }: Props) {
       end={{ x: 1, y: 1 }}
       style={styles.card}
     >
-      <Text style={styles.bigEmoji}>{eventTypeIcon(event.event_type)}</Text>
+      <View style={styles.emojiRow}>
+        {events.map(e => (
+          <Text key={e.event_type} style={styles.bigEmoji}>{eventTypeIcon(e.event_type)}</Text>
+        ))}
+      </View>
       <Text style={styles.eyebrow}>Next pickup</Text>
-      <EventTypeBadge eventType={event.event_type} />
-      <Text style={styles.date}>{formatPickupDate(event.date)}</Text>
+      <View style={styles.badges}>
+        {events.map(e => (
+          <EventTypeBadge key={e.event_type} eventType={e.event_type} />
+        ))}
+      </View>
+      <Text style={styles.date}>{formatPickupDate(first.date)}</Text>
       <Text style={styles.countdown}>{daysUntilLabel(days)}</Text>
     </LinearGradient>
   )
@@ -35,6 +44,10 @@ const styles = StyleSheet.create({
     padding: spacing.lg,
     gap: spacing.sm,
   },
+  emojiRow: {
+    flexDirection: 'row',
+    gap: spacing.xs,
+  },
   bigEmoji: {
     fontSize: 28,
   },
@@ -44,6 +57,11 @@ const styles = StyleSheet.create({
     color: 'rgba(255,255,255,0.7)',
     textTransform: 'uppercase',
     letterSpacing: 0.8,
+  },
+  badges: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.xs,
   },
   date: { fontSize: 18, fontWeight: '600', color: '#FFFFFF' },
   countdown: { fontSize: 14, color: 'rgba(255,255,255,0.7)' },
