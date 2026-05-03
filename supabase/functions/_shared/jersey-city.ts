@@ -35,9 +35,10 @@ async function geocodeForJC(
   if (!res.ok) return null
   const data = await res.json().catch(() => null)
   if (!Array.isArray(data) || !data.length) return null
-  const { lat, lon } = data[0]
-  if (!lat || !lon) return null
-  return { lat: parseFloat(lat), lng: parseFloat(lon) }
+  const parsedLat = parseFloat(data[0].lat)
+  const parsedLng = parseFloat(data[0].lon)
+  if (!isFinite(parsedLat) || !isFinite(parsedLng)) return null
+  return { lat: parsedLat, lng: parsedLng }
 }
 
 async function queryJCZoneName(apiUrl: string, lat: number, lng: number): Promise<string | null> {
