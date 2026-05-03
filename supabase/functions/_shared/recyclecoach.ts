@@ -54,7 +54,7 @@ export async function lookupRCZone(rcCity: RCCity, street: string): Promise<stri
   if (!results.length) return null
   const zones = (results[0] as Record<string, unknown>).zones as Record<string, string> | undefined
   if (!zones || !Object.keys(zones).length) return null
-  return 'zone-' + Object.values(zones).join('-')
+  return 'zone-' + Object.values(zones).sort().join('-')
 }
 
 export function normalizeRCType(name: string): string | null {
@@ -145,8 +145,11 @@ export async function getEventsFromRCZone(
     events.push(...monthEvents)
     cursor = new Date(cursor.getFullYear(), cursor.getMonth() + 1, 1)
   }
-  const todayStr = now.toISOString().slice(0, 10)
-  const endStr = endDate.toISOString().slice(0, 10)
+  function localStr(d: Date): string {
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+  }
+  const todayStr = localStr(now)
+  const endStr = localStr(endDate)
   return events
     .filter(e => e.date >= todayStr && e.date <= endStr)
     .sort((a, b) => a.date.localeCompare(b.date))
