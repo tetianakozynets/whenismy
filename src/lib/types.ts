@@ -32,3 +32,26 @@ export interface LookupError {
   error: string
   notFound?: boolean
 }
+
+export interface UserPreferences {
+  user_id: string
+  street: string
+  city: string
+  state: string
+  recollect_place_id: string | null
+  latitude: number | null
+  longitude: number | null
+  timezone: string | null
+  notification_time: string        // e.g. '20:00'
+  notifications_garbage: boolean
+  notifications_recycling: boolean
+  notifications_yard_waste: boolean
+  supported_event_types: string[]
+}
+
+export interface ManualScheduleInput {
+  event_type: 'garbage' | 'recycling' | 'yard_waste'
+  pickup_day: 'monday' | 'tuesday' | 'wednesday' | 'thursday' | 'friday' | 'saturday' | 'sunday'
+  frequency: 'weekly' | 'biweekly'
+  anchor_date: string | null   // YYYY-MM-DD, required when frequency = 'biweekly'
+}
