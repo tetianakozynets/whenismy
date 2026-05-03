@@ -55,3 +55,41 @@ it('savePushToken upserts to push_tokens', async () => {
     { onConflict: 'user_id' }
   )
 })
+
+it('getExpoPushToken returns token string on success', async () => {
+  ;(Notifications.getExpoPushTokenAsync as jest.Mock).mockResolvedValueOnce({
+    data: 'ExponentPushToken[xyz]',
+  })
+  const { getExpoPushToken } = require('./push-notifications')
+  const token = await getExpoPushToken()
+  expect(token).toBe('ExponentPushToken[xyz]')
+})
+
+it('getExpoPushToken returns null on error', async () => {
+  ;(Notifications.getExpoPushTokenAsync as jest.Mock).mockRejectedValueOnce(new Error('no token'))
+  const { getExpoPushToken } = require('./push-notifications')
+  const token = await getExpoPushToken()
+  expect(token).toBeNull()
+})
+
+it('registerPushToken saves token when permission granted and on device', async () => {
+  ;(Notifications.getPermissionsAsync as jest.Mock).mockResolvedValueOnce({ status: 'granted' })
+  ;(Notifications.getExpoPushTokenAsync as jest.Mock).mockResolvedValueOnce({
+    data: 'ExponentPushToken[reg]',
+  })
+  const upsert = jest.fn().mockResolvedValueOnce({ error: null })
+  ;(supabase.from as jest.Mock).mockReturnValueOnce({ upsert })
+  const { registerPushToken } = require('./push-notifications')
+  await registerPushToken('u1')
+  expect(upsert).toHaveBeenCalled()
+})
+
+it('registerPushToken does nothing when not a device', async () => {
+  ;(Device as any).isDevice = false
+  const upsert = jest.fn()
+  ;(supabase.from as jest.Mock).mockReturnValue({ upsert })
+  const { registerPushToken } = require('./push-notifications')
+  await registerPushToken('u1')
+  expect(upsert).not.toHaveBeenCalled()
+  ;(Device as any).isDevice = true
+})
