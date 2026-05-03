@@ -16,9 +16,6 @@ jest.mock('../src/lib/use-split-layout', () => ({
   useSplitLayout: jest.fn().mockReturnValue(false),
 }))
 
-jest.mock('../src/lib/use-address-autocomplete', () => ({
-  useAddressAutocomplete: () => ({ suggestions: [], clearSuggestions: jest.fn() }),
-}))
 
 jest.spyOn(api, 'lookupSchedule')
 
