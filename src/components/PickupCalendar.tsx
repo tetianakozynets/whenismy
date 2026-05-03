@@ -1,7 +1,8 @@
 import React, { useState } from 'react'
-import { View, Text, Pressable, StyleSheet } from 'react-native'
+import { View, Text, Pressable, StyleSheet, useWindowDimensions } from 'react-native'
 import { PickupEvent } from '../lib/types'
-import { colors, spacing, radius } from '../constants/theme'
+import { colors, spacing, radius, SPLIT_BREAKPOINT } from '../constants/theme'
+import { eventTypeIcon } from '../lib/event-icons'
 
 interface Props {
   events: PickupEvent[]
@@ -12,6 +13,14 @@ const MONTH_NAMES = [
   'January','February','March','April','May','June',
   'July','August','September','October','November','December',
 ]
+
+const EVENT_SHORT_LABELS: Record<string, string> = {
+  garbage: 'Garbage',
+  recycling: 'Recycling',
+  yard_waste: 'Yard Waste',
+  organics: 'Composting',
+  bulk_waste: 'Large Items',
+}
 
 function eventColor(type: string): string {
   return (colors as Record<string, string>)[type] ?? colors.textSecondary
@@ -43,6 +52,9 @@ function pad(n: number) { return String(n).padStart(2, '0') }
 
 export function PickupCalendar({ events }: Props) {
   const today = new Date()
+  const { width } = useWindowDimensions()
+  const isWide = width >= SPLIT_BREAKPOINT
+
   const [viewMonth, setViewMonth] = useState(
     new Date(today.getFullYear(), today.getMonth(), 1)
   )
@@ -52,7 +64,6 @@ export function PickupCalendar({ events }: Props) {
   const monthMap = buildMonthMap(events, year, month)
   const cells = getMonthCells(year, month)
   const todayStr = `${today.getFullYear()}-${pad(today.getMonth() + 1)}-${pad(today.getDate())}`
-
   const weeks = Array.from({ length: cells.length / 7 }, (_, i) => cells.slice(i * 7, i * 7 + 7))
 
   return (
@@ -78,19 +89,35 @@ export function PickupCalendar({ events }: Props) {
       {weeks.map((week, wi) => (
         <View key={wi} style={styles.row}>
           {week.map((day, di) => {
-            if (!day) return <View key={di} style={styles.cell} />
+            if (!day) return <View key={di} style={[styles.cell, isWide ? styles.cellWide : styles.cellNarrow]} />
             const dateStr = `${year}-${pad(month + 1)}-${pad(day)}`
             const dayEvents = monthMap.get(dateStr) ?? []
             const isToday = dateStr === todayStr
+
             return (
-              <View key={di} style={styles.cell}>
+              <View key={di} style={[styles.cell, isWide ? styles.cellWide : styles.cellNarrow]}>
                 <View style={[styles.dayCircle, isToday && styles.todayCircle]}>
                   <Text style={[styles.dayText, isToday && styles.todayText]}>{day}</Text>
                 </View>
-                {dayEvents.length > 0 && (
-                  <View style={styles.dots}>
+
+                {isWide ? (
+                  // Web: colored pill with emoji + label
+                  <View style={styles.pillsCol}>
                     {dayEvents.map(type => (
-                      <View key={type} style={[styles.dot, { backgroundColor: eventColor(type) }]} />
+                      <View key={type} style={[styles.pill, { backgroundColor: eventColor(type) }]}>
+                        <Text style={styles.pillText} numberOfLines={1}>
+                          {eventTypeIcon(type)} {EVENT_SHORT_LABELS[type] ?? type}
+                        </Text>
+                      </View>
+                    ))}
+                  </View>
+                ) : (
+                  // Mobile: small colored badge with emoji only
+                  <View style={styles.badgeRow}>
+                    {dayEvents.map(type => (
+                      <View key={type} style={[styles.badge, { backgroundColor: eventColor(type) }]}>
+                        <Text style={styles.badgeEmoji}>{eventTypeIcon(type)}</Text>
+                      </View>
                     ))}
                   </View>
                 )}
@@ -119,14 +146,30 @@ const styles = StyleSheet.create({
   navBtn: { padding: spacing.sm },
   navText: { fontSize: 22, color: colors.primary, fontWeight: '600' },
   row: { flexDirection: 'row' },
-  cell: { flex: 1, alignItems: 'center', paddingVertical: spacing.xs, minHeight: 44 },
+  cell: { flex: 1, alignItems: 'center', paddingVertical: spacing.xs },
+  cellNarrow: { minHeight: 58 },
+  cellWide: { minHeight: 70 },
   dowText: {
-    fontSize: 11, fontWeight: '600', color: colors.textSecondary, textTransform: 'uppercase',
+    fontSize: 11, fontWeight: '600', color: colors.textSecondary,
+    textTransform: 'uppercase', paddingBottom: spacing.xs,
   },
   dayCircle: { width: 28, height: 28, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
   todayCircle: { backgroundColor: colors.primary },
   dayText: { fontSize: 13, color: colors.text },
   todayText: { color: '#fff', fontWeight: '700' },
-  dots: { flexDirection: 'row', gap: 2, marginTop: 2 },
-  dot: { width: 5, height: 5, borderRadius: 3 },
+
+  // Web: pill style
+  pillsCol: { width: '100%', gap: 2, marginTop: 3 },
+  pill: {
+    borderRadius: 4,
+    paddingHorizontal: 4,
+    paddingVertical: 2,
+    width: '100%',
+  },
+  pillText: { fontSize: 10, color: '#fff', fontWeight: '500' },
+
+  // Mobile: badge style
+  badgeRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 2, marginTop: 3, justifyContent: 'center' },
+  badge: { width: 20, height: 20, borderRadius: 5, alignItems: 'center', justifyContent: 'center' },
+  badgeEmoji: { fontSize: 11 },
 })
