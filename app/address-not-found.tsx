@@ -1,9 +1,12 @@
 import React from 'react'
 import { View, Text, Pressable, StyleSheet, SafeAreaView } from 'react-native'
 import { router } from 'expo-router'
+import { useAuth } from '../src/lib/auth-context'
 import { colors, spacing, radius } from '../src/constants/theme'
 
 export default function AddressNotFoundScreen() {
+  const { user } = useAuth()
+
   return (
     <SafeAreaView style={styles.safe}>
       <View style={styles.container}>
@@ -19,6 +22,15 @@ export default function AddressNotFoundScreen() {
           testID="btn-paste-url"
         >
           <Text style={styles.primaryButtonText}>Paste your calendar URL</Text>
+        </Pressable>
+        <Text style={styles.orText}>or</Text>
+        <Pressable
+          style={styles.secondaryButton}
+          onPress={() => user ? router.push('/manual-entry') : router.push('/sign-in')}
+          accessibilityRole="button"
+          testID="btn-manual-entry"
+        >
+          <Text style={styles.secondaryButtonText}>Enter my pickup days</Text>
         </Pressable>
         <Text style={styles.orText}>or</Text>
         <Pressable
