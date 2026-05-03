@@ -8,6 +8,10 @@ jest.mock('expo-router', () => ({
   router: { push: jest.fn(), back: jest.fn(), replace: jest.fn() },
 }))
 
+jest.mock('../src/lib/auth-context', () => ({
+  useAuth: () => ({ user: null, session: null, loading: false }),
+}))
+
 jest.mock('../src/lib/use-split-layout', () => ({
   useSplitLayout: jest.fn().mockReturnValue(false),
 }))
@@ -50,7 +54,7 @@ it('navigates to /schedule and saves result to store on success (narrow)', async
     const { router } = require('expo-router')
     expect(router.push).toHaveBeenCalledWith('/schedule')
   })
-  expect(scheduleStore.get()).toEqual(mockResult)
+  expect(scheduleStore.getResult()).toEqual(mockResult)
 })
 
 it('navigates to /address-not-found when address is not found', async () => {
@@ -86,5 +90,5 @@ it('does not navigate on success when in split layout (wide screen)', async () =
   const { router } = require('expo-router')
   expect(router.push).not.toHaveBeenCalledWith('/schedule')
   // On wide screens setResult is called directly; scheduleStore is NOT populated
-  expect(scheduleStore.get()).toBeNull()
+  expect(scheduleStore.getResult()).toBeNull()
 })

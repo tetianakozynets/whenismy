@@ -7,7 +7,7 @@ import { useSplitLayout } from '../src/lib/use-split-layout'
 import { colors } from '../src/constants/theme'
 
 export default function ScheduleScreen() {
-  const result = scheduleStore.get()
+  const result = scheduleStore.getResult()
   const isSplit = useSplitLayout()
 
   useEffect(() => {

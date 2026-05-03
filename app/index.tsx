@@ -33,14 +33,14 @@ export default function HomeScreen() {
         return
       }
       if (res.multiple && res.multiple.length >= 1) {
-        scheduleStore.set(res)
+        scheduleStore.set(res, street, city, state)
         setMatches(res.multiple)
         return
       }
       if (isSplit) {
         setResult(res)
       } else {
-        scheduleStore.set(res)
+        scheduleStore.set(res, street, city, state)
         router.push('/schedule')
       }
     } finally {
@@ -54,7 +54,7 @@ export default function HomeScreen() {
       // Plan 2 limitation: the lookup-schedule Edge Function returns events for places[0]
       // regardless of which match the user selects. A proper re-fetch by place ID
       // requires extending the Edge Function to accept a placeId param (Plan 3+).
-      const stored = scheduleStore.get()
+      const stored = scheduleStore.getResult()
       if (stored) setResult(stored)
     } else {
       router.push('/schedule')

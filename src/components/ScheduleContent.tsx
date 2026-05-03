@@ -1,10 +1,12 @@
 import React, { useState } from 'react'
 import { View, Text, ScrollView, Pressable, StyleSheet } from 'react-native'
+import { router } from 'expo-router'
 import { LookupResponse, PickupEvent } from '../lib/types'
 import { NextPickupCard } from './NextPickupCard'
 import { ScheduleList } from './ScheduleList'
 import { daysUntil } from '../lib/formatting'
 import { colors, spacing, radius } from '../constants/theme'
+import { useAuth } from '../lib/auth-context'
 
 interface Props {
   result: LookupResponse
@@ -24,6 +26,7 @@ function groupByDate(events: PickupEvent[]): Map<string, PickupEvent[]> {
 export function ScheduleContent({ result, onBack }: Props) {
   const { events = [], place } = result
   const [showAll, setShowAll] = useState(false)
+  const { user } = useAuth()
 
   if (events.length === 0) {
     return (
@@ -81,11 +84,17 @@ export function ScheduleContent({ result, onBack }: Props) {
       <Text style={styles.disclaimer}>
         Schedules may shift on public holidays — check your municipality's website.
       </Text>
-      <Pressable style={styles.upsellBanner} accessibilityRole="button">
-        <Text style={styles.upsellText}>
-          Get reminders the night before pickup — Sign in →
-        </Text>
-      </Pressable>
+      {!user && (
+        <Pressable
+          style={styles.upsellBanner}
+          onPress={() => router.push('/sign-in')}
+          accessibilityRole="button"
+        >
+          <Text style={styles.upsellText}>
+            Get reminders the night before pickup — Sign in →
+          </Text>
+        </Pressable>
+      )}
     </ScrollView>
   )
 }

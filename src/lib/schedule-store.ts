@@ -1,15 +1,25 @@
 import { LookupResponse } from './types'
 
-let _result: LookupResponse | null = null
+interface StoredResult {
+  result: LookupResponse
+  street: string
+  city: string
+  state: string
+}
+
+let stored: StoredResult | null = null
 
 export const scheduleStore = {
-  set(r: LookupResponse): void {
-    _result = r
+  set(result: LookupResponse, street: string, city: string, state: string) {
+    stored = { result, street, city, state }
   },
-  get(): LookupResponse | null {
-    return _result
+  get(): StoredResult | null {
+    return stored
   },
-  clear(): void {
-    _result = null
+  getResult(): LookupResponse | null {
+    return stored?.result ?? null
+  },
+  clear() {
+    stored = null
   },
 }

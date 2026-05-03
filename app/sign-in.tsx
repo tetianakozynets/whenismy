@@ -6,6 +6,9 @@ import {
 import { router } from 'expo-router'
 import { signUp, signIn } from '../src/lib/auth'
 import { colors, spacing, radius } from '../src/constants/theme'
+import { scheduleStore } from '../src/lib/schedule-store'
+import { saveAddress, savePickupEvents } from '../src/lib/user-api'
+import { registerPushToken } from '../src/lib/push-notifications'
 
 export default function SignInScreen() {
   const [mode, setMode] = useState<'signin' | 'signup'>('signup')
@@ -31,8 +34,17 @@ export default function SignInScreen() {
         setInfo('Check your email to confirm your account, then sign in.')
         setMode('signin')
       } else {
-        const { error: err } = await signIn(e, p)
+        const { data, error: err } = await signIn(e, p)
         if (err) { setError(err.message); return }
+        const userId = data.user?.id
+        if (userId) {
+          const storedSchedule = scheduleStore.get()
+          if (storedSchedule) {
+            await saveAddress(userId, storedSchedule.street, storedSchedule.city, storedSchedule.state, storedSchedule.result.place)
+            await savePickupEvents(userId, storedSchedule.result.events)
+          }
+          registerPushToken(userId) // fire and forget
+        }
         router.back()
       }
     } finally {

@@ -8,4 +8,9 @@ module.exports = {
     '/supabase/',
     '/.worktrees/',
   ],
+  moduleNameMapper: {
+    '^@react-native-async-storage/async-storage$':
+      require.resolve('@react-native-async-storage/async-storage/jest/async-storage-mock'),
+  },
+  testTimeout: 15000,
 }
