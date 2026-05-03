@@ -55,11 +55,13 @@ export function ScheduleContent({ result, onBack }: Props) {
   return (
     <ScrollView contentContainerStyle={styles.scroll}>
       <View style={styles.topBar}>
-        <Pressable onPress={onBack} accessibilityRole="button">
-          <Text style={styles.backLink}>← Change address</Text>
-        </Pressable>
+        {!isWide && (
+          <Pressable onPress={onBack} accessibilityRole="button">
+            <Text style={styles.backLink}>← Change address</Text>
+          </Pressable>
+        )}
         {user && (
-          <Pressable onPress={() => router.push('/settings')} accessibilityRole="button">
+          <Pressable onPress={() => router.push('/settings')} accessibilityRole="button" style={isWide && styles.gearRight}>
             <Text style={styles.gear}>⚙️</Text>
           </Pressable>
         )}
@@ -146,6 +148,7 @@ const styles = StyleSheet.create({
   },
   backLink: { color: colors.primary, fontSize: 15 },
   gear: { fontSize: 20 },
+  gearRight: { marginLeft: 'auto' },
   sectionHeader: {
     fontSize: 11,
     fontWeight: '600',
