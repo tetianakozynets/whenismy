@@ -7,6 +7,16 @@ import {
 import {
   parseIcalUrl, getEventsForPlace, getEvents, normalizeEventType,
 } from '../_shared/recollect.ts'
+import {
+  getRecycleCoachResult,
+  getEventsFromRCZone,
+  type RCCity,
+} from '../_shared/recyclecoach.ts'
+import {
+  isJerseyCity,
+  getJerseyCityEvents,
+  generateJCWeeklyEvents,
+} from '../_shared/jersey-city.ts'
 
 export function normalizeAddress(street: string, city: string, state: string): string {
   return [street, city, state].map(s => s.trim().toLowerCase()).join('|')
@@ -131,6 +141,78 @@ export async function handler(req: Request): Promise<Response> {
     return json({ place: cacheRow, events })
   }
 
+  // ── New Jersey ────────────────────────────────────────────────────────────
+  if (state!.trim().toUpperCase() === 'NJ') {
+    // Hoboken: citywide fixed schedule, same for every address — no API needed
+    if (city!.trim().toLowerCase() === 'hoboken') {
+      const hobokenEvents = generateHobokenEvents(60)
+      const cacheRow = {
+        address_key: addressKey,
+        recollect_place_id: null,
+        latitude: null,
+        longitude: null,
+        timezone: 'America/New_York',
+        supported_event_types: ['garbage', 'recycling', 'bulk_waste', 'yard_waste'],
+        provider: 'hoboken-static',
+        provider_data: null,
+      }
+      await supabase.from('place_lookup_cache').upsert(cacheRow)
+      return json({ place: cacheRow, events: hobokenEvents })
+    }
+
+    // Jersey City has its own open data GeoJSON zone API; RecycleCoach zone-setup
+    // returns empty results for JC addresses, so it must be handled separately.
+    if (isJerseyCity(city!)) {
+      const jcResult = await getJerseyCityEvents(street!, city!, state!)
+      if (!jcResult) return json({ error: 'Address not found', notFound: true }, 404)
+
+      const supportedTypes: string[] = []
+      if (jcResult.garbage_days.length) supportedTypes.push('garbage')
+      if (jcResult.recycling_days.length) supportedTypes.push('recycling')
+
+      const cacheRow = {
+        address_key: addressKey,
+        recollect_place_id: null,
+        latitude: jcResult.lat,
+        longitude: jcResult.lng,
+        timezone: 'America/New_York',
+        supported_event_types: supportedTypes,
+        provider: 'jersey-city',
+        provider_data: { garbage_days: jcResult.garbage_days, recycling_days: jcResult.recycling_days },
+      }
+      await supabase.from('place_lookup_cache').upsert(cacheRow)
+      return json({ place: cacheRow, events: jcResult.events })
+    }
+
+    // All other NJ cities: RecycleCoach (NJDEP-funded, covers all 21 counties)
+    const rcResult = await getRecycleCoachResult(street!, city!, state!)
+    if (rcResult) {
+      const supportedTypes = [...new Set(rcResult.events.map(e => e.event_type))]
+      const cacheRow = {
+        address_key: addressKey,
+        recollect_place_id: null,
+        latitude: null,
+        longitude: null,
+        timezone: 'America/New_York',
+        supported_event_types: supportedTypes,
+        provider: 'recyclecoach',
+        provider_data: {
+          project_id: rcResult.city.project_id,
+          district_id: rcResult.city.district_id,
+          zone_id: rcResult.zone_id,
+          apigw_prefix: rcResult.city.apigw_prefix,
+        },
+      }
+      await supabase.from('place_lookup_cache').upsert(cacheRow)
+      return json({ place: cacheRow, events: rcResult.events })
+    }
+
+    // RecycleCoach returned nothing — distinguish notFound from notCovered
+    const njExists = await addressExistsNominatim(street!, city!, state!)
+    if (!njExists) return json({ error: 'Address not found', notFound: true }, 404)
+    return json({ error: 'Address not covered', notCovered: true }, 404)
+  }
+
   // ── Not covered ────────────────────────────────────────────────────────────
   // Geocode with Nominatim to distinguish "fake address" from "real but not covered"
   const exists = await addressExistsNominatim(street!, city!, state!)
@@ -183,6 +265,40 @@ async function eventsFromCache(
     }
   }
 
+  if (cached.provider === 'hoboken-static') {
+    return generateHobokenEvents(60)
+  }
+
+  if (cached.provider === 'recyclecoach') {
+    const pd = cached.provider_data as {
+      project_id: string
+      district_id: string
+      zone_id: string
+      apigw_prefix: string
+    } | null
+    if (pd) {
+      const rcCity: RCCity = {
+        project_id: pd.project_id,
+        district_id: pd.district_id,
+        apigw_prefix: pd.apigw_prefix ?? 'us',
+      }
+      return getEventsFromRCZone(rcCity, pd.zone_id, 60)
+    }
+  }
+
+  if (cached.provider === 'jersey-city') {
+    const pd = cached.provider_data as {
+      garbage_days: string[]
+      recycling_days: string[]
+    } | null
+    if (pd) {
+      return [
+        ...generateJCWeeklyEvents(pd.garbage_days ?? [], 'garbage', 60),
+        ...generateJCWeeklyEvents(pd.recycling_days ?? [], 'recycling', 60),
+      ].sort((a, b) => a.date.localeCompare(b.date))
+    }
+  }
+
   return []
 }
 
@@ -198,6 +314,49 @@ function corsHeaders() {
     'Access-Control-Allow-Origin': '*',
     'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
   }
+}
+
+// Hoboken has a single citywide schedule — same for every address, no zones.
+// Source: https://www.hobokennj.gov/resources/waste-collection
+function generateHobokenEvents(daysAhead: number): { date: string; event_type: string }[] {
+  const DOW: Record<string, number> = {
+    sunday: 0, monday: 1, tuesday: 2, wednesday: 3,
+    thursday: 4, friday: 5, saturday: 6,
+  }
+  function pad(n: number) { return String(n).padStart(2, '0') }
+  function localStr(d: Date) {
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
+  }
+  function nextDow(dow: number, from: Date): Date {
+    const diff = (dow - from.getDay() + 7) % 7
+    const d = new Date(from)
+    d.setDate(d.getDate() + diff)
+    return d
+  }
+
+  const SCHEDULE: { dow: string; event_type: string }[] = [
+    { dow: 'monday',    event_type: 'garbage' },
+    { dow: 'tuesday',   event_type: 'recycling' },   // commingled (plastics, glass, cans)
+    { dow: 'thursday',  event_type: 'garbage' },
+    { dow: 'friday',    event_type: 'recycling' },   // paper + cardboard
+    { dow: 'friday',    event_type: 'bulk_waste' },  // metal furniture, appliances, e-waste
+    { dow: 'friday',    event_type: 'yard_waste' },  // seasonal yard/garden waste
+    { dow: 'saturday',  event_type: 'garbage' },
+  ]
+
+  const start = new Date()
+  start.setHours(0, 0, 0, 0)
+  const endMs = start.getTime() + daysAhead * 86_400_000
+  const events: { date: string; event_type: string }[] = []
+
+  for (const { dow, event_type } of SCHEDULE) {
+    const d = nextDow(DOW[dow], start)
+    while (d.getTime() < endMs) {
+      events.push({ date: localStr(d), event_type })
+      d.setDate(d.getDate() + 7)
+    }
+  }
+  return events.sort((a, b) => a.date.localeCompare(b.date))
 }
 
 if (import.meta.main) Deno.serve(handler)

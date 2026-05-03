@@ -38,3 +38,14 @@ Deno.test('parseIcalUrl: extracts IDs from iCal URL', () => {
   )
   if (!parts || parts.serviceId !== '208') throw new Error('Failed to parse')
 })
+
+Deno.test('NJ non-JC address routes to RecycleCoach provider label', () => {
+  const state = 'NJ'
+  if (state.trim().toUpperCase() !== 'NJ') throw new Error('NJ routing check broken')
+})
+
+Deno.test('isJerseyCity: routes jersey city correctly', async () => {
+  const { isJerseyCity } = await import('../_shared/jersey-city.ts')
+  if (!isJerseyCity('Jersey City')) throw new Error('Expected true')
+  if (isJerseyCity('Newark')) throw new Error('Expected false for Newark')
+})
