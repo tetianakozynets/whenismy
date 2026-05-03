@@ -30,7 +30,8 @@ export interface LookupResponse {
 
 export interface LookupError {
   error: string
-  notFound?: boolean
+  notFound?: boolean    // address doesn't exist
+  notCovered?: boolean  // address is real but app has no schedule for it
 }
 
 export interface UserPreferences {

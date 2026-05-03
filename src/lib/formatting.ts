@@ -6,6 +6,10 @@ const EVENT_LABELS: Record<string, string> = {
   bulk_waste: 'Large Items',
 }
 
+export function toTitleCase(s: string): string {
+  return s.replace(/\b\w/g, c => c.toUpperCase())
+}
+
 export function eventTypeLabel(eventType: string): string {
   return (
     EVENT_LABELS[eventType] ??

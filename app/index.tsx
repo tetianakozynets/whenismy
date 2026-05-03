@@ -11,21 +11,28 @@ import { lookupSchedule, isError } from '../src/lib/api'
 import { scheduleStore } from '../src/lib/schedule-store'
 import { useSplitLayout } from '../src/lib/use-split-layout'
 import { PlaceMatch, LookupResponse } from '../src/lib/types'
+import { toTitleCase } from '../src/lib/formatting'
 import { colors, spacing } from '../src/constants/theme'
 
 export default function HomeScreen() {
   const [loading, setLoading] = useState(false)
   const [matches, setMatches] = useState<PlaceMatch[] | null>(null)
   const [result, setResult] = useState<LookupResponse | null>(null)
+  const [address, setAddress] = useState<string | undefined>(undefined)
+  const [notFound, setNotFound] = useState(false)
   const [resetKey, setResetKey] = useState(0)
   const isSplit = useSplitLayout()
 
   async function handleLookup(street: string, city: string, state: string) {
     setLoading(true)
+    setNotFound(false)
     try {
       const res = await lookupSchedule(street, city, state)
       if (isError(res)) {
         if (res.notFound) {
+          setNotFound(true)
+          setResult(null)
+        } else if (res.notCovered) {
           router.push('/address-not-found')
         } else {
           Alert.alert('Error', res.error)
@@ -39,6 +46,7 @@ export default function HomeScreen() {
       }
       if (isSplit) {
         setResult(res)
+        setAddress([toTitleCase(street), toTitleCase(city), state.toUpperCase()].filter(Boolean).join(', '))
       } else {
         scheduleStore.set(res, street, city, state)
         router.push('/schedule')
@@ -63,6 +71,8 @@ export default function HomeScreen() {
 
   function handleReset() {
     setResult(null)
+    setAddress(undefined)
+    setNotFound(false)
     setMatches(null)
     setResetKey(k => k + 1)
   }
@@ -74,6 +84,13 @@ export default function HomeScreen() {
         Find your garbage and recycling pickup days
       </Text>
       <AddressForm key={resetKey} onSubmit={handleLookup} loading={loading} />
+      {notFound && !isSplit && (
+        <View style={styles.notFoundBox}>
+          <Text style={styles.notFoundText}>
+            We couldn't find that address. Please double-check the spelling and try a valid US address.
+          </Text>
+        </View>
+      )}
     </>
   )
 
@@ -82,7 +99,7 @@ export default function HomeScreen() {
       <>
         <SplitLayout
           form={<View style={styles.formPadding}>{formContent}</View>}
-          panel={<SchedulePanel result={result} onReset={handleReset} />}
+          panel={<SchedulePanel result={result} onReset={handleReset} address={address} notFound={notFound} />}
         />
         {matches && (
           <AddressMatchPicker
@@ -135,5 +152,17 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: colors.textSecondary,
     textAlign: 'center',
+  },
+  notFoundBox: {
+    backgroundColor: '#2a1a1a',
+    borderLeftWidth: 3,
+    borderLeftColor: colors.primary,
+    borderRadius: 6,
+    padding: spacing.md,
+  },
+  notFoundText: {
+    fontSize: 14,
+    color: colors.textSecondary,
+    lineHeight: 20,
   },
 })

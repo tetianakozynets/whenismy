@@ -9,26 +9,23 @@ interface Props {
   loading: boolean
 }
 
+const SUPPORTED_STATES = ['NY', 'NJ'] as const
+
 export function AddressForm({ onSubmit, loading }: Props) {
   const [street, setStreet] = useState('')
   const [city, setCity] = useState('')
-  const [state, setState] = useState('')
+  const [state, setState] = useState<string>('NY')
   const [error, setError] = useState<string | null>(null)
 
   function handleSubmit() {
     const s = street.trim()
     const c = city.trim()
-    const st = state.trim()
-    if (!s || !c || !st) {
+    if (!s || !c) {
       setError('Please fill in all fields.')
       return
     }
-    if (!/^[A-Za-z]{2}$/.test(st)) {
-      setError('State must be a 2-letter abbreviation (e.g. NY).')
-      return
-    }
     setError(null)
-    onSubmit(s, c, st.toUpperCase())
+    onSubmit(s, c, state)
   }
 
   return (
@@ -51,20 +48,25 @@ export function AddressForm({ onSubmit, loading }: Props) {
         onChangeText={setCity}
         testID="input-city"
         autoCapitalize="words"
-        returnKeyType="next"
-      />
-      <TextInput
-        style={styles.input}
-        placeholder="State (e.g. NY)"
-        placeholderTextColor={colors.textSecondary}
-        value={state}
-        onChangeText={setState}
-        testID="input-state"
-        maxLength={2}
-        autoCapitalize="characters"
         returnKeyType="done"
         onSubmitEditing={handleSubmit}
       />
+      <View style={styles.stateRow}>
+        {SUPPORTED_STATES.map(s => (
+          <Pressable
+            key={s}
+            style={[styles.stateChip, state === s && styles.stateChipActive]}
+            onPress={() => setState(s)}
+            accessibilityRole="button"
+            testID={`state-chip-${s}`}
+          >
+            <Text style={[styles.stateChipText, state === s && styles.stateChipTextActive]}>
+              {s}
+            </Text>
+          </Pressable>
+        ))}
+        <Text style={styles.moreSoon}>More states coming soon</Text>
+      </View>
       {error ? (
         <Text style={styles.error} testID="form-error">{error}</Text>
       ) : null}
@@ -94,6 +96,37 @@ const styles = StyleSheet.create({
     fontSize: 16,
     backgroundColor: colors.card,
     color: colors.text,
+  },
+  stateRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  stateChip: {
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radius.sm,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    backgroundColor: colors.card,
+  },
+  stateChipActive: {
+    borderColor: colors.primary,
+    backgroundColor: colors.primary,
+  },
+  stateChipText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: colors.textSecondary,
+  },
+  stateChipTextActive: {
+    color: '#fff',
+  },
+  moreSoon: {
+    fontSize: 12,
+    color: colors.textSecondary,
+    fontStyle: 'italic',
+    flexShrink: 1,
   },
   error: { color: colors.error, fontSize: 14 },
   button: {

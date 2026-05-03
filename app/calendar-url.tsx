@@ -32,7 +32,8 @@ export default function CalendarUrlScreen() {
         setError(result.error)
         return
       }
-      scheduleStore.set(result)
+      // Calendar URL doesn't provide parsed address components, use placeholders
+      scheduleStore.set(result, '', '', '')
       router.push('/schedule')
     } finally {
       setLoading(false)

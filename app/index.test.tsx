@@ -44,7 +44,7 @@ it('navigates to /schedule and saves result to store on success (narrow)', async
   const { getByTestId } = render(<HomeScreen />)
   fireEvent.changeText(getByTestId('input-street'), '123 Main St')
   fireEvent.changeText(getByTestId('input-city'), 'Springfield')
-  fireEvent.changeText(getByTestId('input-state'), 'NY')
+  // NY is pre-selected by default
   fireEvent.press(getByTestId('submit-button'))
 
   await waitFor(() => {
@@ -54,21 +54,19 @@ it('navigates to /schedule and saves result to store on success (narrow)', async
   expect(scheduleStore.getResult()).toEqual(mockResult)
 })
 
-it('navigates to /address-not-found when address is not found', async () => {
+it('shows not-found error inline when address is not found', async () => {
   ;(api.lookupSchedule as jest.Mock).mockResolvedValueOnce({
     error: 'Address not found',
     notFound: true,
   })
-  const { getByTestId } = render(<HomeScreen />)
+  const { getByTestId, findByText } = render(<HomeScreen />)
   fireEvent.changeText(getByTestId('input-street'), '99 Unknown')
   fireEvent.changeText(getByTestId('input-city'), 'Nowhere')
-  fireEvent.changeText(getByTestId('input-state'), 'XX')
   fireEvent.press(getByTestId('submit-button'))
 
-  await waitFor(() => {
-    const { router } = require('expo-router')
-    expect(router.push).toHaveBeenCalledWith('/address-not-found')
-  })
+  await findByText(/couldn't find that address/i)
+  const { router } = require('expo-router')
+  expect(router.push).not.toHaveBeenCalledWith('/address-not-found')
 })
 
 it('does not navigate on success when in split layout (wide screen)', async () => {
@@ -78,7 +76,8 @@ it('does not navigate on success when in split layout (wide screen)', async () =
   const { getByTestId } = render(<HomeScreen />)
   fireEvent.changeText(getByTestId('input-street'), '123 Main St')
   fireEvent.changeText(getByTestId('input-city'), 'Springfield')
-  fireEvent.changeText(getByTestId('input-state'), 'NY')
+  // NY is pre-selected; press NJ chip to test state chip interaction
+  fireEvent.press(getByTestId('state-chip-NJ'))
   fireEvent.press(getByTestId('submit-button'))
 
   await waitFor(() => {

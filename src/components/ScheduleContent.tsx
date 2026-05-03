@@ -12,6 +12,7 @@ import { useAuth } from '../lib/auth-context'
 interface Props {
   result: LookupResponse
   onBack: () => void
+  address?: string
 }
 
 function groupByDate(events: PickupEvent[]): Map<string, PickupEvent[]> {
@@ -24,7 +25,7 @@ function groupByDate(events: PickupEvent[]): Map<string, PickupEvent[]> {
   return map
 }
 
-export function ScheduleContent({ result, onBack }: Props) {
+export function ScheduleContent({ result, onBack, address }: Props) {
   const { events = [], place } = result
   const [showAll, setShowAll] = useState(false)
   const [showCalendar, setShowCalendar] = useState(false)
@@ -76,6 +77,7 @@ export function ScheduleContent({ result, onBack }: Props) {
           <Text style={styles.providerText}>📅 Calendar subscription</Text>
         </View>
       )}
+      {address ? <Text style={styles.addressLabel}>{address}</Text> : null}
       <NextPickupCard events={firstDayEvents} />
       {listEvents.length > 0 && (
         <>
@@ -200,4 +202,5 @@ const styles = StyleSheet.create({
     alignSelf: 'flex-start',
   },
   providerText: { fontSize: 12, color: colors.textSecondary },
+  addressLabel: { fontSize: 13, color: colors.textSecondary },
 })

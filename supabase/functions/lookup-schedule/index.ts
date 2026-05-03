@@ -132,7 +132,26 @@ export async function handler(req: Request): Promise<Response> {
   }
 
   // ── Not covered ────────────────────────────────────────────────────────────
-  return json({ error: 'Address not found', notFound: true }, 404)
+  // Geocode with Nominatim to distinguish "fake address" from "real but not covered"
+  const exists = await addressExistsNominatim(street!, city!, state!)
+  if (!exists) return json({ error: 'Address not found', notFound: true }, 404)
+  return json({ error: 'Address not covered', notCovered: true }, 404)
+}
+
+async function addressExistsNominatim(street: string, city: string, state: string): Promise<boolean> {
+  try {
+    const q = encodeURIComponent(`${street}, ${city}, ${state}, USA`)
+    const res = await fetch(
+      `https://nominatim.openstreetmap.org/search?q=${q}&format=json&limit=1&addressdetails=1`,
+      { headers: { 'User-Agent': 'whenIsMy/1.0 (pickup schedule app)' } }
+    )
+    if (!res.ok) return true // fail open so real addresses aren't incorrectly blocked
+    const data = await res.json()
+    if (!Array.isArray(data) || data.length === 0) return false
+    return !!data[0]?.address?.house_number
+  } catch {
+    return true // fail open on network error
+  }
 }
 
 async function eventsFromCache(

@@ -42,7 +42,8 @@ export async function geocodeNYC(street: string, city: string, state: string): P
   if (!res.ok) return null
   const data = await res.json()
   const feat = data?.features?.[0]
-  if (!feat) return null
+  // Require an address-level match so city/neighbourhood fallbacks don't silently succeed
+  if (!feat || feat.properties?.layer !== 'address') return null
   const [lng, lat] = feat.geometry.coordinates
   return { lat, lng }
 }

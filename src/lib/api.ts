@@ -16,10 +16,11 @@ export async function lookupSchedule(
       },
       body: JSON.stringify({ street, city, state }),
     })
+    const data = await res.json().catch(() => null)
     if (!res.ok) {
-      return { error: `Server error (${res.status}) — please try again.` }
+      return data ?? { error: `Server error (${res.status}) — please try again.` }
     }
-    return res.json()
+    return data
   } catch {
     return { error: 'Network error — check your connection and try again.' }
   }

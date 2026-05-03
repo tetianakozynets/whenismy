@@ -38,6 +38,6 @@ it('updates when width crosses the breakpoint', () => {
   const { result, rerender } = renderHook(() => useSplitLayout())
   expect(result.current).toBe(false)
   spy.mockReturnValue({ width: 900, height: 900, scale: 1, fontScale: 1 })
-  rerender()
+  rerender({})
   expect(result.current).toBe(true)
 })
