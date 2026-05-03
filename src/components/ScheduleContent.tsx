@@ -50,9 +50,16 @@ export function ScheduleContent({ result, onBack }: Props) {
 
   return (
     <ScrollView contentContainerStyle={styles.scroll}>
-      <Pressable onPress={onBack} style={styles.backRow} accessibilityRole="button">
-        <Text style={styles.backLink}>← Change address</Text>
-      </Pressable>
+      <View style={styles.topBar}>
+        <Pressable onPress={onBack} accessibilityRole="button">
+          <Text style={styles.backLink}>← Change address</Text>
+        </Pressable>
+        {user && (
+          <Pressable onPress={() => router.push('/settings')} accessibilityRole="button">
+            <Text style={styles.gear}>⚙️</Text>
+          </Pressable>
+        )}
+      </View>
       {place.provider === 'nyc-dsny' && (
         <View style={styles.providerBadge}>
           <Text style={styles.providerText}>🗽 NYC official schedule</Text>
@@ -103,8 +110,14 @@ const styles = StyleSheet.create({
   empty: { flex: 1, padding: spacing.lg, gap: spacing.md, justifyContent: 'center' },
   emptyText: { fontSize: 16, color: colors.textSecondary },
   scroll: { padding: spacing.lg, gap: spacing.lg },
-  backRow: { paddingVertical: spacing.xs },
+  topBar: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: spacing.xs,
+  },
   backLink: { color: colors.primary, fontSize: 15 },
+  gear: { fontSize: 20 },
   sectionHeader: {
     fontSize: 11,
     fontWeight: '600',
