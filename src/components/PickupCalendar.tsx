@@ -65,12 +65,17 @@ export function PickupCalendar({ events }: Props) {
   const cells = getMonthCells(year, month)
   const todayStr = `${today.getFullYear()}-${pad(today.getMonth() + 1)}-${pad(today.getDate())}`
   const weeks = Array.from({ length: cells.length / 7 }, (_, i) => cells.slice(i * 7, i * 7 + 7))
+  const isCurrentMonth = year === today.getFullYear() && month === today.getMonth()
 
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <Pressable onPress={() => setViewMonth(d => new Date(d.getFullYear(), d.getMonth() - 1, 1))} style={styles.navBtn}>
-          <Text style={styles.navText}>‹</Text>
+        <Pressable
+          onPress={() => setViewMonth(d => new Date(d.getFullYear(), d.getMonth() - 1, 1))}
+          style={styles.navBtn}
+          disabled={isCurrentMonth}
+        >
+          <Text style={[styles.navText, isCurrentMonth && styles.navDisabled]}>‹</Text>
         </Pressable>
         <Text style={styles.monthLabel}>{MONTH_NAMES[month]} {year}</Text>
         <Pressable onPress={() => setViewMonth(d => new Date(d.getFullYear(), d.getMonth() + 1, 1))} style={styles.navBtn}>
@@ -147,6 +152,7 @@ const styles = StyleSheet.create({
   monthLabel: { fontSize: 15, fontWeight: '600', color: colors.text },
   navBtn: { padding: spacing.sm },
   navText: { fontSize: 22, color: colors.primary, fontWeight: '600' },
+  navDisabled: { color: colors.border },
   row: { flexDirection: 'row' },
   grid: {
     borderTopWidth: StyleSheet.hairlineWidth,
