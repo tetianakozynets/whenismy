@@ -86,16 +86,17 @@ export function PickupCalendar({ events }: Props) {
         ))}
       </View>
 
-      {weeks.map((week, wi) => (
+      <View style={styles.grid}>
+        {weeks.map((week, wi) => (
         <View key={wi} style={styles.row}>
           {week.map((day, di) => {
-            if (!day) return <View key={di} style={[styles.cell, isWide ? styles.cellWide : styles.cellNarrow]} />
+            if (!day) return <View key={di} style={[styles.cell, styles.gridCell, isWide ? styles.cellWide : styles.cellNarrow]} />
             const dateStr = `${year}-${pad(month + 1)}-${pad(day)}`
             const dayEvents = monthMap.get(dateStr) ?? []
             const isToday = dateStr === todayStr
 
             return (
-              <View key={di} style={[styles.cell, isWide ? styles.cellWide : styles.cellNarrow]}>
+              <View key={di} style={[styles.cell, styles.gridCell, isWide ? styles.cellWide : styles.cellNarrow]}>
                 <View style={[styles.dayCircle, isToday && styles.todayCircle]}>
                   <Text style={[styles.dayText, isToday && styles.todayText]}>{day}</Text>
                 </View>
@@ -125,7 +126,8 @@ export function PickupCalendar({ events }: Props) {
             )
           })}
         </View>
-      ))}
+        ))}
+      </View>
     </View>
   )
 }
@@ -146,6 +148,16 @@ const styles = StyleSheet.create({
   navBtn: { padding: spacing.sm },
   navText: { fontSize: 22, color: colors.primary, fontWeight: '600' },
   row: { flexDirection: 'row' },
+  grid: {
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderLeftWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.border,
+  },
+  gridCell: {
+    borderRightWidth: StyleSheet.hairlineWidth,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.border,
+  },
   cell: { flex: 1, alignItems: 'center', paddingVertical: spacing.xs },
   cellNarrow: { minHeight: 58 },
   cellWide: { minHeight: 70 },
