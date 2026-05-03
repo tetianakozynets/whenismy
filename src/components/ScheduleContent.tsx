@@ -1,11 +1,12 @@
 import React, { useState } from 'react'
-import { View, Text, ScrollView, Pressable, StyleSheet } from 'react-native'
+import { View, Text, ScrollView, Pressable, StyleSheet, useWindowDimensions } from 'react-native'
 import { router } from 'expo-router'
 import { LookupResponse, PickupEvent } from '../lib/types'
 import { NextPickupCard } from './NextPickupCard'
 import { ScheduleList } from './ScheduleList'
+import { PickupCalendar } from './PickupCalendar'
 import { daysUntil } from '../lib/formatting'
-import { colors, spacing, radius } from '../constants/theme'
+import { colors, spacing, radius, SPLIT_BREAKPOINT } from '../constants/theme'
 import { useAuth } from '../lib/auth-context'
 
 interface Props {
@@ -26,7 +27,10 @@ function groupByDate(events: PickupEvent[]): Map<string, PickupEvent[]> {
 export function ScheduleContent({ result, onBack }: Props) {
   const { events = [], place } = result
   const [showAll, setShowAll] = useState(false)
+  const [showCalendar, setShowCalendar] = useState(false)
   const { user } = useAuth()
+  const { width } = useWindowDimensions()
+  const isWide = width >= SPLIT_BREAKPOINT
 
   if (events.length === 0) {
     return (
@@ -91,6 +95,30 @@ export function ScheduleContent({ result, onBack }: Props) {
       <Text style={styles.disclaimer}>
         Schedules may shift on public holidays — check your municipality's website.
       </Text>
+      {isWide ? (
+        <>
+          <Text style={styles.sectionHeader}>This month</Text>
+          <PickupCalendar events={events} />
+        </>
+      ) : (
+        <>
+          <Pressable
+            style={styles.calendarToggle}
+            onPress={() => setShowCalendar(v => !v)}
+            accessibilityRole="button"
+          >
+            <Text style={styles.calendarToggleText}>
+              {showCalendar ? 'Hide calendar' : '📅 See in calendar'}
+            </Text>
+          </Pressable>
+          {showCalendar && (
+            <>
+              <Text style={styles.sectionHeader}>This month</Text>
+              <PickupCalendar events={events} />
+            </>
+          )}
+        </>
+      )}
       {!user && (
         <Pressable
           style={styles.upsellBanner}
@@ -141,6 +169,18 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: colors.textSecondary,
     fontStyle: 'italic',
+  },
+  calendarToggle: {
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radius.sm,
+    padding: spacing.md,
+    alignItems: 'center',
+  },
+  calendarToggleText: {
+    color: colors.primary,
+    fontSize: 14,
+    fontWeight: '500',
   },
   upsellBanner: {
     backgroundColor: colors.primary,
