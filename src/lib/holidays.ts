@@ -18,16 +18,34 @@ async function fetchYear(year: number): Promise<{ date: string; localName: strin
   }
 }
 
+// Fixed-date holidays whose canonical date Nager.Date may shift to the
+// nearest weekday when they fall on a weekend. We always want to show
+// these on their actual calendar date, not the government-observed date.
+const FIXED_DATE_HOLIDAYS: Record<string, { month: number; day: number }> = {
+  "New Year's Day":                       { month: 1,  day: 1  },
+  'Juneteenth National Independence Day': { month: 6,  day: 19 },
+  'Independence Day':                     { month: 7,  day: 4  },
+  'Veterans Day':                         { month: 11, day: 11 },
+  'Christmas Day':                        { month: 12, day: 25 },
+}
+
 export async function getUSHolidays(): Promise<HolidayMap> {
   const year = new Date().getFullYear()
   if (_cache && _cachedForYear === year) return _cache
   const [thisYear, nextYear] = await Promise.all([fetchYear(year), fetchYear(year + 1)])
   const map: HolidayMap = new Map()
   for (const h of [...thisYear, ...nextYear]) {
-    // Only include nationwide holidays (global: true).
-    // State-specific holidays (Truman Day, etc.) have global: false and
-    // rarely affect municipal pickup schedules.
-    if (h.global) map.set(h.date, h.localName)
+    if (!h.global) continue
+    const fixed = FIXED_DATE_HOLIDAYS[h.localName]
+    if (fixed) {
+      // Snap to canonical date — e.g. Independence Day always July 4,
+      // not July 3 or July 5 when Nager.Date shifts for a weekend.
+      const y = parseInt(h.date.slice(0, 4), 10)
+      const canonical = `${y}-${pad(fixed.month)}-${pad(fixed.day)}`
+      map.set(canonical, h.localName)
+    } else {
+      map.set(h.date, h.localName)
+    }
   }
   _cache = map
   _cachedForYear = year

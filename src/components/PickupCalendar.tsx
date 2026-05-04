@@ -68,6 +68,7 @@ export function PickupCalendar({ events, holidays }: Props) {
   const todayStr = `${today.getFullYear()}-${pad(today.getMonth() + 1)}-${pad(today.getDate())}`
   const weeks = Array.from({ length: cells.length / 7 }, (_, i) => cells.slice(i * 7, i * 7 + 7))
   const isCurrentMonth = year === today.getFullYear() && month === today.getMonth()
+  const monthsAhead = (year - today.getFullYear()) * 12 + (month - today.getMonth())
 
   // Collect holidays that fall in the viewed month for the notes section
   const monthHolidays: { date: string; name: string }[] = []
@@ -171,6 +172,11 @@ export function PickupCalendar({ events, holidays }: Props) {
           ))}
         </View>
       )}
+      {monthsAhead >= 2 && (
+        <Text style={styles.futureNote}>
+          Schedules for future months may change. Come back closer to the date for the latest.
+        </Text>
+      )}
     </View>
   )
 }
@@ -262,5 +268,12 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     fontStyle: 'italic',
     lineHeight: 18,
+  },
+  futureNote: {
+    marginTop: spacing.sm,
+    fontSize: 12,
+    color: colors.textSecondary,
+    fontStyle: 'italic',
+    textAlign: 'center',
   },
 })
