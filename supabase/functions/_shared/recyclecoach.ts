@@ -31,10 +31,12 @@ export async function searchRCCity(city: string, state: string): Promise<RCCity 
   const results: unknown[] = Array.isArray(data) ? data : (data?.results ?? [])
   if (!results.length) return null
   const hit = results[0] as Record<string, unknown>
-  if (!hit?.sku) return null
+  // API returns project_id field; zone-setup uses it as the "sku" query param
+  const projectId = hit?.sku ?? hit?.project_id
+  if (!projectId) return null
   const rawPrefix = String(hit.apigw_prefix ?? 'us')
   return {
-    project_id: String(hit.sku),
+    project_id: String(projectId),
     district_id: String(hit.district_id ?? ''),
     apigw_prefix: /^[a-z0-9-]{1,16}$/.test(rawPrefix) ? rawPrefix : 'us',
   }
@@ -80,11 +82,14 @@ export async function buildRCTypeMap(rcCity: RCCity, zoneId: string): Promise<Ma
   const map = new Map<string, string>()
   if (!res.ok) return map
   const data = await res.json().catch(() => null)
-  const collections: unknown[] = Array.isArray(data) ? data : (data?.collections ?? [])
-  for (const c of collections) {
-    const col = c as Record<string, unknown>
-    const et = normalizeRCType(String(col.name ?? ''))
-    if (et && col.id != null) map.set(String(col.id), et)
+  // Actual format: { collection: { types: { "collection-2665": { title: "Garbage" } } } }
+  const types = data?.collection?.types as Record<string, Record<string, unknown>> | undefined
+  if (!types) return map
+  for (const [key, val] of Object.entries(types)) {
+    const id = key.startsWith('collection-') ? key.slice('collection-'.length) : null
+    if (!id) continue
+    const et = normalizeRCType(String(val?.title ?? ''))
+    if (et) map.set(id, et)
   }
   return map
 }
@@ -109,22 +114,27 @@ export async function fetchRCMonth(
   if (!res.ok) return []
   const data = await res.json().catch(() => null)
   if (!data) return []
-  const yearMap = (data.dates ?? data) as Record<string, unknown>
-  const monthPadded = String(month).padStart(2, '0')
-  const monthData =
-    (yearMap[String(year)] as Record<string, unknown> | undefined)?.[monthPadded] ??
-    (yearMap[String(year)] as Record<string, unknown> | undefined)?.[String(month)]
-  if (!monthData || typeof monthData !== 'object') return []
+  // Actual format: { DATA: [{ year, months: [{ month, events: [{ date, collections: [{ id, status }] }] }] }] }
+  type RCScheduleCol = { id: number; status: string }
+  type RCScheduleEvent = { date: string; day: number; collections: RCScheduleCol[] }
+  type RCScheduleMonth = { month: number; events: RCScheduleEvent[] }
+  type RCScheduleYear = { year: number; months: RCScheduleMonth[] }
+  const dataArr = data?.DATA as RCScheduleYear[] | undefined
+  if (!dataArr) return []
 
   const events: RCEvent[] = []
-  for (const [day, value] of Object.entries(monthData as Record<string, unknown>)) {
-    if (value && typeof value === 'object' && !Array.isArray(value) &&
-        (value as Record<string, unknown>).is_none) continue
-    const ids: string[] = Array.isArray(value) ? value.map(String) : []
-    const dateStr = `${year}-${monthPadded}-${day.padStart(2, '0')}`
-    for (const id of ids) {
-      const eventType = typeMap.get(id)
-      if (eventType) events.push({ date: dateStr, event_type: eventType })
+  for (const yearEntry of dataArr) {
+    if (yearEntry.year !== year) continue
+    for (const monthEntry of yearEntry.months) {
+      if (monthEntry.month !== month) continue
+      for (const event of monthEntry.events) {
+        if (!event.date) continue
+        for (const col of event.collections) {
+          if (col.status) continue  // non-empty status = cancelled/modified
+          const eventType = typeMap.get(String(col.id))
+          if (eventType) events.push({ date: event.date, event_type: eventType })
+        }
+      }
     }
   }
   return events
