@@ -6,6 +6,7 @@ export default function RootLayout() {
     <AuthProvider>
       <Stack screenOptions={{ headerShown: false }}>
         <Stack.Screen name="index" />
+        <Stack.Screen name="(tabs)" />
         <Stack.Screen name="schedule" />
         <Stack.Screen name="address-not-found" />
         <Stack.Screen name="calendar-url" />
