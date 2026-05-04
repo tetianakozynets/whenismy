@@ -64,6 +64,19 @@ Deno.test('normalizeRCType: cancellations and closures return null', () => {
   }
 })
 
+Deno.test('normalizeRCType: community drop-off events return null', () => {
+  for (const name of [
+    'Recycling Event - Mahwah',   // collection 2803 — drop-off event, not curbside
+    'Recycling Event - Paramus',  // collection 2802
+    'Recycle Event',
+    'Electronics Drop-Off',
+    'Tire Drop Off',
+  ]) {
+    const result = normalizeRCType(name)
+    if (result !== null) throw new Error(`Expected null for "${name}", got "${result}"`)
+  }
+})
+
 // ── API call tests ────────────────────────────────────────────────────────────
 Deno.test('searchRCCity: returns RCCity on valid response', async () => {
   await withMockFetch({
