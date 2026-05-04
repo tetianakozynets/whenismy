@@ -62,9 +62,12 @@ export async function lookupRCZone(rcCity: RCCity, street: string): Promise<stri
 
 export function normalizeRCType(name: string): string | null {
   const n = name.toLowerCase()
+  // Cancellations, closures, and non-pickup notifications must be excluded first
+  // e.g. "Saturday Recycling Cancelled", "Recycle Yard Closure", "HHW - Mahwah", "Shred-It Event"
+  if (n.includes('cancel') || n.includes('closure') || n.includes('hhw') || n.includes('shred')) return null
   if (n.includes('garbage') || n.includes('trash') || n.includes('refuse') || n.includes('rubbish')) return 'garbage'
   if (n.includes('recycl') || n.includes('container') || n.includes('paper') || n.includes('glass') || n.includes('metal')) return 'recycling'
-  if (n.includes('yard') || n.includes('leaf') || n.includes('brush') || n.includes('vegetation')) return 'yard_waste'
+  if (n.includes('yard') || n.includes('leaf') || n.includes('brush') || n.includes('vegetation') || n.includes('grass')) return 'yard_waste'
   if (n.includes('bulk') || n.includes('large item') || n.includes('heavy')) return 'bulk_waste'
   if (n.includes('organic') || n.includes('compost') || n.includes('food')) return 'organics'
   return null

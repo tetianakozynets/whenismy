@@ -45,9 +45,23 @@ Deno.test('normalizeRCType: recycling variants', () => {
 
 Deno.test('normalizeRCType: other event types', () => {
   if (normalizeRCType('Yard Waste') !== 'yard_waste') throw new Error('yard_waste')
+  if (normalizeRCType('Grass Bags') !== 'yard_waste') throw new Error('grass bags → yard_waste')
   if (normalizeRCType('Bulk Items') !== 'bulk_waste') throw new Error('bulk_waste')
   if (normalizeRCType('Composting') !== 'organics') throw new Error('organics')
   if (normalizeRCType('Holiday') !== null) throw new Error('unknown should be null')
+})
+
+Deno.test('normalizeRCType: cancellations and closures return null', () => {
+  for (const name of [
+    'Saturday Recycling Cancelled - Mahwah',
+    'Recycle Yard Closure',
+    'HHW - Mahwah',
+    'Mahwah Shred-It Event',
+    'Garbage Cancelled - Holiday',
+  ]) {
+    const result = normalizeRCType(name)
+    if (result !== null) throw new Error(`Expected null for "${name}", got "${result}"`)
+  }
 })
 
 // ── API call tests ────────────────────────────────────────────────────────────
