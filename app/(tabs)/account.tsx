@@ -21,8 +21,12 @@ export default function AccountTab() {
   }, [user])
 
   async function handleSignOut() {
-    await signOut()
-    router.replace('/')
+    try {
+      await signOut()
+      router.replace('/')
+    } catch {
+      Alert.alert('Error', 'Could not sign out. Please try again.')
+    }
   }
 
   function handleDeleteAccount() {
@@ -34,9 +38,13 @@ export default function AccountTab() {
         {
           text: 'Delete', style: 'destructive',
           onPress: async () => {
-            await deleteAccount()
-            await signOut()
-            router.replace('/')
+            try {
+              await deleteAccount()
+              router.replace('/')
+              signOut().catch(() => {})
+            } catch {
+              Alert.alert('Error', 'Could not delete account. Please try again.')
+            }
           },
         },
       ]
