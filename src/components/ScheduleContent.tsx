@@ -105,7 +105,7 @@ export function ScheduleContent({ result, onBack, address }: Props) {
       {isWide ? (
         <>
           <Text style={styles.sectionHeader}>This month</Text>
-          <PickupCalendar events={events} />
+          <PickupCalendar events={events} holidays={holidays} />
         </>
       ) : (
         <>
@@ -121,7 +121,7 @@ export function ScheduleContent({ result, onBack, address }: Props) {
           {showCalendar && (
             <>
               <Text style={styles.sectionHeader}>This month</Text>
-              <PickupCalendar events={events} />
+              <PickupCalendar events={events} holidays={holidays} />
             </>
           )}
         </>

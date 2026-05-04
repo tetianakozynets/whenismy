@@ -1,11 +1,13 @@
 import React, { useState } from 'react'
 import { View, Text, Pressable, StyleSheet, useWindowDimensions } from 'react-native'
 import { PickupEvent } from '../lib/types'
+import { HolidayMap } from '../lib/holidays'
 import { colors, spacing, radius, SPLIT_BREAKPOINT } from '../constants/theme'
 import { eventTypeIcon } from '../lib/event-icons'
 
 interface Props {
   events: PickupEvent[]
+  holidays?: HolidayMap
 }
 
 const DOW_HEADERS = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa']
@@ -50,7 +52,7 @@ function getMonthCells(year: number, month: number): (number | null)[] {
 
 function pad(n: number) { return String(n).padStart(2, '0') }
 
-export function PickupCalendar({ events }: Props) {
+export function PickupCalendar({ events, holidays }: Props) {
   const today = new Date()
   const { width } = useWindowDimensions()
   const isWide = width >= SPLIT_BREAKPOINT
@@ -66,6 +68,17 @@ export function PickupCalendar({ events }: Props) {
   const todayStr = `${today.getFullYear()}-${pad(today.getMonth() + 1)}-${pad(today.getDate())}`
   const weeks = Array.from({ length: cells.length / 7 }, (_, i) => cells.slice(i * 7, i * 7 + 7))
   const isCurrentMonth = year === today.getFullYear() && month === today.getMonth()
+
+  // Collect holidays that fall in the viewed month for the notes section
+  const monthHolidays: { date: string; name: string }[] = []
+  if (holidays?.size) {
+    const daysInMonth = new Date(year, month + 1, 0).getDate()
+    for (let d = 1; d <= daysInMonth; d++) {
+      const dateStr = `${year}-${pad(month + 1)}-${pad(d)}`
+      const name = holidays.get(dateStr)
+      if (name) monthHolidays.push({ date: dateStr, name })
+    }
+  }
 
   return (
     <View style={styles.container}>
@@ -99,6 +112,7 @@ export function PickupCalendar({ events }: Props) {
             const dateStr = `${year}-${pad(month + 1)}-${pad(day)}`
             const dayEvents = monthMap.get(dateStr) ?? []
             const isToday = dateStr === todayStr
+            const holidayName = holidays?.get(dateStr)
 
             return (
               <View key={di} style={[styles.cell, styles.gridCell, isWide ? styles.cellWide : styles.cellNarrow]}>
@@ -109,6 +123,11 @@ export function PickupCalendar({ events }: Props) {
                 {isWide ? (
                   // Web: colored pill with emoji + label
                   <View style={styles.pillsCol}>
+                    {holidayName && (
+                      <View style={styles.holidayPill}>
+                        <Text style={styles.pillText} numberOfLines={1}>🏛 Holiday</Text>
+                      </View>
+                    )}
                     {dayEvents.map(type => (
                       <View key={type} style={[styles.pill, { backgroundColor: eventColor(type) }]}>
                         <Text style={styles.pillText} numberOfLines={1}>
@@ -120,6 +139,11 @@ export function PickupCalendar({ events }: Props) {
                 ) : (
                   // Mobile: small colored badge with emoji only
                   <View style={styles.badgeRow}>
+                    {holidayName && (
+                      <View style={styles.holidayBadge}>
+                        <Text style={styles.badgeEmoji}>🏛</Text>
+                      </View>
+                    )}
                     {dayEvents.map(type => (
                       <View key={type} style={[styles.badge, { backgroundColor: eventColor(type) }]}>
                         <Text style={styles.badgeEmoji}>{eventTypeIcon(type)}</Text>
@@ -133,6 +157,16 @@ export function PickupCalendar({ events }: Props) {
         </View>
         ))}
       </View>
+
+      {monthHolidays.length > 0 && (
+        <View style={styles.holidayNotes}>
+          {monthHolidays.map(h => (
+            <Text key={h.date} style={styles.holidayNoteText}>
+              🏛 {h.name} — many cities have delayed or cancelled pickup. Check your city's website.
+            </Text>
+          ))}
+        </View>
+      )}
     </View>
   )
 }
@@ -190,4 +224,36 @@ const styles = StyleSheet.create({
   badgeRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 2, marginTop: 3, justifyContent: 'center' },
   badge: { width: 20, height: 20, borderRadius: 5, alignItems: 'center', justifyContent: 'center' },
   badgeEmoji: { fontSize: 11 },
+
+  // Holiday indicators
+  holidayPill: {
+    borderRadius: 4,
+    paddingHorizontal: 4,
+    paddingVertical: 2,
+    width: '100%',
+    backgroundColor: '#92400e',
+  },
+  holidayBadge: {
+    width: 20,
+    height: 20,
+    borderRadius: 5,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#92400e',
+  },
+
+  // Notes below calendar
+  holidayNotes: {
+    marginTop: spacing.md,
+    gap: spacing.xs,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: colors.border,
+    paddingTop: spacing.sm,
+  },
+  holidayNoteText: {
+    fontSize: 12,
+    color: colors.textSecondary,
+    fontStyle: 'italic',
+    lineHeight: 18,
+  },
 })
