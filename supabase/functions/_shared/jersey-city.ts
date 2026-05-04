@@ -100,7 +100,7 @@ export async function getJerseyCityEvents(
   street: string,
   city: string,
   state: string,
-  daysAhead = 60,
+  daysAhead = 90,
 ): Promise<JCResult | null> {
   const coords = await geocodeForJC(street, city, state)
   if (!coords) return null

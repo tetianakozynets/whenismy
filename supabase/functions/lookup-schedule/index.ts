@@ -53,7 +53,7 @@ export async function handler(req: Request): Promise<Response> {
   }
 
   const after = new Date().toISOString().slice(0, 10)
-  const before = new Date(Date.now() + 60 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10)
+  const before = new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10)
 
   // ── iCal URL path ──────────────────────────────────────────────────────────
   if (ical_url) {
@@ -134,7 +134,7 @@ export async function handler(req: Request): Promise<Response> {
     }
     await supabase.from('place_lookup_cache').upsert(cacheRow)
 
-    const events = generateDSNYEvents(zone, 60).map(e => ({
+    const events = generateDSNYEvents(zone, 90).map(e => ({
       date: e.event_date,
       event_type: e.event_type,
     }))
@@ -145,7 +145,7 @@ export async function handler(req: Request): Promise<Response> {
   if (state!.trim().toUpperCase() === 'NJ') {
     // Hoboken: citywide fixed schedule, same for every address — no API needed
     if (city!.trim().toLowerCase() === 'hoboken') {
-      const hobokenEvents = generateHobokenEvents(60)
+      const hobokenEvents = generateHobokenEvents(90)
       const cacheRow = {
         address_key: addressKey,
         recollect_place_id: null,
@@ -247,7 +247,7 @@ async function eventsFromCache(
 ) {
   if (cached.provider === 'nyc-dsny') {
     const zone = cached.provider_data as Parameters<typeof generateDSNYEvents>[0]
-    return generateDSNYEvents(zone, 60).map(e => ({
+    return generateDSNYEvents(zone, 90).map(e => ({
       date: e.event_date,
       event_type: e.event_type,
     }))
@@ -270,7 +270,7 @@ async function eventsFromCache(
   }
 
   if (cached.provider === 'hoboken-static') {
-    return generateHobokenEvents(60)
+    return generateHobokenEvents(90)
   }
 
   if (cached.provider === 'recyclecoach') {
@@ -289,7 +289,7 @@ async function eventsFromCache(
         apigw_prefix: /^[a-z0-9-]{1,16}$/.test(rawPrefix) ? rawPrefix : 'us',
       }
       const zoneIds = pd.zone_ids ?? (pd.zone_id ? [pd.zone_id] : null)
-      if (zoneIds) return getEventsFromRCZone(rcCity, zoneIds, 60)
+      if (zoneIds) return getEventsFromRCZone(rcCity, zoneIds, 90)
     }
   }
 
@@ -300,8 +300,8 @@ async function eventsFromCache(
     } | null
     if (pd) {
       return [
-        ...generateJCWeeklyEvents(pd.garbage_days ?? [], 'garbage', 60),
-        ...generateJCWeeklyEvents(pd.recycling_days ?? [], 'recycling', 60),
+        ...generateJCWeeklyEvents(pd.garbage_days ?? [], 'garbage', 90),
+        ...generateJCWeeklyEvents(pd.recycling_days ?? [], 'recycling', 90),
       ].sort((a, b) => a.date.localeCompare(b.date))
     }
   }

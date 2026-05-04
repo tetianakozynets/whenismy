@@ -150,7 +150,7 @@ export async function fetchRCMonth(
 export async function getEventsFromRCZone(
   rcCity: RCCity,
   zoneIds: string | string[],
-  daysAhead = 60,
+  daysAhead = 90,
 ): Promise<RCEvent[]> {
   const ids = Array.isArray(zoneIds) ? zoneIds : [zoneIds]
   const now = new Date()
@@ -189,7 +189,7 @@ export async function getRecycleCoachResult(
   street: string,
   city: string,
   state: string,
-  daysAhead = 60,
+  daysAhead = 90,
 ): Promise<RCResult | null> {
   const rcCity = await searchRCCity(city, state)
   if (!rcCity) return null

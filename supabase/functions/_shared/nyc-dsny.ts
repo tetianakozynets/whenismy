@@ -113,7 +113,7 @@ export interface DSNYEvent { event_date: string; event_type: string }
 
 export function generateDSNYEvents(
   zone: DSNYZone,
-  daysAhead = 60,
+  daysAhead = 90,
   startDate: Date = new Date()
 ): DSNYEvent[] {
   const start = new Date(startDate)
