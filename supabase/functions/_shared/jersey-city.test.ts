@@ -105,3 +105,20 @@ Deno.test('getJerseyCityEvents: returns null when no zone found', async () => {
     if (result !== null) throw new Error('Expected null')
   })
 })
+
+Deno.test('getJerseyCityEvents: returns garbage-only result when recycling zone missing', async () => {
+  await withMockFetch({
+    'nominatim.openstreetmap.org': [{ lat: '40.728', lon: '-74.077' }],
+    'garbage-collection-map': { results: [{ name: 'Tuesday / Friday' }] },
+    'recycling-collection-map': { results: [] },  // no recycling zone
+  }, async () => {
+    const result = await getJerseyCityEvents('100 Grove St', 'Jersey City', 'NJ', 14)
+    if (!result) throw new Error('Expected result')
+    if (result.garbage_days.length === 0) throw new Error('Expected garbage days')
+    if (result.recycling_days.length !== 0) throw new Error('Expected empty recycling_days')
+    const hasGarbage = result.events.some(e => e.event_type === 'garbage')
+    const hasRecycling = result.events.some(e => e.event_type === 'recycling')
+    if (!hasGarbage) throw new Error('Expected garbage events')
+    if (hasRecycling) throw new Error('Expected no recycling events')
+  })
+})

@@ -153,3 +153,71 @@ Deno.test('getRecycleCoachResult: returns null when city not found', async () =>
     if (result !== null) throw new Error('Expected null')
   })
 })
+
+Deno.test('getEventsFromRCZone: date-range filter excludes past and far-future events', async () => {
+  const city: RCCity = { project_id: 'NJ_ESS', district_id: 'NEWARK', apigw_prefix: 'us' }
+  const typeMap = new Map([['2665', 'garbage']])
+
+  // Build a schedule: one event far in the past, one today, one far in the future
+  const now = new Date()
+  function pad(n: number) { return String(n).padStart(2, '0') }
+  function localStr(d: Date) {
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
+  }
+  const pastDate = new Date(now.getTime() - 10 * 86_400_000)   // 10 days ago
+  const todayDate = new Date(now)
+  const futureDate = new Date(now.getTime() + 5 * 86_400_000)  // 5 days from now
+  const farFuture = new Date(now.getTime() + 90 * 86_400_000)  // 90 days (beyond daysAhead=30)
+
+  const mockSchedule: Record<string, unknown> = {}
+  mockSchedule[pad(pastDate.getDate())] = [2665]
+  mockSchedule[pad(todayDate.getDate())] = [2665]
+  mockSchedule[pad(futureDate.getDate())] = [2665]
+  mockSchedule[pad(farFuture.getDate())] = [2665]
+
+  // Only return one month — simplified to current month only
+  const scheduleBody = {
+    dates: { [String(now.getFullYear())]: { [pad(now.getMonth() + 1)]: mockSchedule } },
+  }
+
+  await withMockFetch({
+    '/collections': [{ id: 2665, name: 'Garbage' }],
+    'app_data_zone_schedules': scheduleBody,
+  }, async () => {
+    const events = await getEventsFromRCZone(city, 'zone-z14089', 30)
+    const dates = events.map(e => e.date)
+    if (dates.includes(localStr(pastDate))) throw new Error('Past event should be excluded')
+    if (!dates.includes(localStr(todayDate))) throw new Error('Today event should be included')
+    if (!dates.includes(localStr(futureDate))) throw new Error('Future (in-window) event should be included')
+    // farFuture is in the same month but may fall outside the 30-day window depending on exact date;
+    // at minimum verify no event is more than 30 days ahead
+    for (const d of dates) {
+      const eventMs = new Date(d + 'T12:00:00').getTime()
+      if (eventMs > now.getTime() + 31 * 86_400_000) {
+        throw new Error(`Event ${d} is beyond the 30-day window`)
+      }
+    }
+  })
+})
+
+Deno.test('getEventsFromRCZone: deduplicates same date+type pairs', async () => {
+  const city: RCCity = { project_id: 'NJ_ESS', district_id: 'NEWARK', apigw_prefix: 'us' }
+
+  // Return duplicate collection IDs for the same day
+  const now = new Date()
+  function pad(n: number) { return String(n).padStart(2, '0') }
+  const tomorrowDay = pad(new Date(now.getTime() + 86_400_000).getDate())
+  const month = pad(now.getMonth() + 1)
+  const year = String(now.getFullYear())
+
+  await withMockFetch({
+    '/collections': [{ id: 2665, name: 'Garbage' }],
+    'app_data_zone_schedules': {
+      dates: { [year]: { [month]: { [tomorrowDay]: [2665, 2665] } } },
+    },
+  }, async () => {
+    const events = await getEventsFromRCZone(city, 'zone-z14089', 60)
+    const garbageCount = events.filter(e => e.event_type === 'garbage').length
+    if (garbageCount !== 1) throw new Error(`Expected 1 garbage event after dedup, got ${garbageCount}`)
+  })
+})
