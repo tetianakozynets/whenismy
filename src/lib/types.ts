@@ -5,7 +5,7 @@ export interface PlaceInfo {
   longitude: number | null
   timezone: string | null
   supported_event_types: string[]
-  provider: 'nyc-dsny' | 'recollect-ical' | 'recollect' | null
+  provider: 'nyc-dsny' | 'recollect-ical' | 'recollect' | 'recyclecoach' | 'hoboken-static' | 'jersey-city' | null
   ical_url?: string
 }
 
