@@ -34,6 +34,7 @@ export async function getUsersForSlot(
   const { data, error } = await supabase
     .from('user_preferences')
     .select('user_id, recollect_place_id, supported_event_types, provider, ical_url')
+    // TODO (Plan 3): add NJ providers — provider.eq.recyclecoach,provider.eq.jersey-city,provider.eq.hoboken-static
     .or('recollect_place_id.not.is.null,provider.eq.nyc-dsny,provider.eq.recollect-ical')
 
   if (error) throw error
