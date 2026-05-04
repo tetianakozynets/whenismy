@@ -14,7 +14,7 @@ export interface RCEvent {
 export interface RCResult {
   events: RCEvent[]
   city: RCCity
-  zone_id: string
+  zone_ids: string[]
 }
 
 const RC_SEARCH_BASE = 'https://api-city.recyclecoach.com'
@@ -42,7 +42,7 @@ export async function searchRCCity(city: string, state: string): Promise<RCCity 
   }
 }
 
-export async function lookupRCZone(rcCity: RCCity, street: string): Promise<string | null> {
+export async function lookupRCZone(rcCity: RCCity, street: string): Promise<string[] | null> {
   const base = apiBase(rcCity.apigw_prefix)
   const params = new URLSearchParams({
     sku: rcCity.project_id,
@@ -57,7 +57,8 @@ export async function lookupRCZone(rcCity: RCCity, street: string): Promise<stri
   if (!results.length) return null
   const zones = (results[0] as Record<string, unknown>).zones as Record<string, string> | undefined
   if (!zones || !Object.keys(zones).length) return null
-  return 'zone-' + Object.values(zones).sort().join('-')
+  // Deduplicate zone values — each unique zone gets its own API call downstream
+  return [...new Set(Object.values(zones))].sort().map(v => `zone-${v}`)
 }
 
 export function normalizeRCType(name: string): string | null {
@@ -133,7 +134,8 @@ export async function fetchRCMonth(
       for (const event of monthEntry.events) {
         if (!event.date) continue
         for (const col of event.collections) {
-          if (col.status) continue  // non-empty status = cancelled/modified
+          const s = (col.status ?? '').toLowerCase()
+          if (s.includes('cancel') || s === 'suspended') continue
           const eventType = typeMap.get(String(col.id))
           if (eventType) events.push({ date: event.date, event_type: eventType })
         }
@@ -145,27 +147,32 @@ export async function fetchRCMonth(
 
 export async function getEventsFromRCZone(
   rcCity: RCCity,
-  zoneId: string,
+  zoneIds: string | string[],
   daysAhead = 60,
 ): Promise<RCEvent[]> {
-  const typeMap = await buildRCTypeMap(rcCity, zoneId)
-  if (!typeMap.size) return []
+  const ids = Array.isArray(zoneIds) ? zoneIds : [zoneIds]
   const now = new Date()
   const endDate = new Date(now.getTime() + daysAhead * 86_400_000)
-  const events: RCEvent[] = []
-  let cursor = new Date(now.getFullYear(), now.getMonth(), 1)
-  while (cursor <= endDate) {
-    const monthEvents = await fetchRCMonth(rcCity, zoneId, typeMap, cursor.getFullYear(), cursor.getMonth() + 1)
-    events.push(...monthEvents)
-    cursor = new Date(cursor.getFullYear(), cursor.getMonth() + 1, 1)
+  const allEvents: RCEvent[] = []
+
+  for (const zoneId of ids) {
+    const typeMap = await buildRCTypeMap(rcCity, zoneId)
+    if (!typeMap.size) continue
+    let cursor = new Date(now.getFullYear(), now.getMonth(), 1)
+    while (cursor <= endDate) {
+      const monthEvents = await fetchRCMonth(rcCity, zoneId, typeMap, cursor.getFullYear(), cursor.getMonth() + 1)
+      allEvents.push(...monthEvents)
+      cursor = new Date(cursor.getFullYear(), cursor.getMonth() + 1, 1)
+    }
   }
+
   function localStr(d: Date): string {
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
   }
   const todayStr = localStr(now)
   const endStr = localStr(endDate)
   const seen = new Set<string>()
-  return events
+  return allEvents
     .filter(e => e.date >= todayStr && e.date <= endStr)
     .filter(e => {
       const key = `${e.date}|${e.event_type}`
@@ -184,8 +191,8 @@ export async function getRecycleCoachResult(
 ): Promise<RCResult | null> {
   const rcCity = await searchRCCity(city, state)
   if (!rcCity) return null
-  const zoneId = await lookupRCZone(rcCity, street)
-  if (!zoneId) return null
-  const events = await getEventsFromRCZone(rcCity, zoneId, daysAhead)
-  return { events, city: rcCity, zone_id: zoneId }
+  const zoneIds = await lookupRCZone(rcCity, street)
+  if (!zoneIds) return null
+  const events = await getEventsFromRCZone(rcCity, zoneIds, daysAhead)
+  return { events, city: rcCity, zone_ids: zoneIds }
 }

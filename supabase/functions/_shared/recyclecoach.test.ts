@@ -84,33 +84,46 @@ Deno.test('searchRCCity: returns null on empty results', async () => {
   })
 })
 
-Deno.test('lookupRCZone: builds zone-id from zones object', async () => {
+Deno.test('lookupRCZone: returns single-element array for one zone', async () => {
   const city: RCCity = { project_id: 'NJ_ESS', district_id: 'NEWARK', apigw_prefix: 'us' }
   await withMockFetch({
     'zone-setup/address': { results: [{ zones: { '3800': 'z14089' } }] },
   }, async () => {
-    const zoneId = await lookupRCZone(city, '100 Broad St')
-    if (zoneId !== 'zone-z14089') throw new Error(`Wrong zone_id: ${zoneId}`)
+    const zoneIds = await lookupRCZone(city, '100 Broad St')
+    if (!Array.isArray(zoneIds) || zoneIds.length !== 1) throw new Error(`Expected array of 1, got: ${JSON.stringify(zoneIds)}`)
+    if (zoneIds[0] !== 'zone-z14089') throw new Error(`Wrong zone_id: ${zoneIds[0]}`)
   })
 })
 
-Deno.test('lookupRCZone: joins multiple zone values', async () => {
+Deno.test('lookupRCZone: returns separate zone entries for multiple zones', async () => {
   const city: RCCity = { project_id: 'NJ_MON', district_id: 'FREEHOLD', apigw_prefix: 'us' }
   await withMockFetch({
     'zone-setup/address': { results: [{ zones: { '3800': 'z14089', '3801': 'z16205' } }] },
   }, async () => {
-    const zoneId = await lookupRCZone(city, '5 Main St')
-    if (!zoneId?.includes('z14089') || !zoneId?.includes('z16205')) {
-      throw new Error(`Unexpected zone_id: ${zoneId}`)
+    const zoneIds = await lookupRCZone(city, '5 Main St')
+    if (!Array.isArray(zoneIds) || zoneIds.length !== 2) throw new Error(`Expected array of 2, got: ${JSON.stringify(zoneIds)}`)
+    if (!zoneIds.includes('zone-z14089') || !zoneIds.includes('zone-z16205')) {
+      throw new Error(`Unexpected zone_ids: ${JSON.stringify(zoneIds)}`)
     }
+  })
+})
+
+Deno.test('lookupRCZone: deduplicates identical zone values', async () => {
+  const city: RCCity = { project_id: 'NJ_ESS', district_id: 'NEWARK', apigw_prefix: 'us' }
+  await withMockFetch({
+    'zone-setup/address': { results: [{ zones: { '3800': 'z14089', '3801': 'z14089' } }] },
+  }, async () => {
+    const zoneIds = await lookupRCZone(city, '200 Broad St')
+    if (!Array.isArray(zoneIds) || zoneIds.length !== 1) throw new Error(`Expected deduped array of 1, got: ${JSON.stringify(zoneIds)}`)
+    if (zoneIds[0] !== 'zone-z14089') throw new Error(`Wrong zone_id: ${zoneIds[0]}`)
   })
 })
 
 Deno.test('lookupRCZone: returns null when results empty', async () => {
   const city: RCCity = { project_id: 'NJ_ESS', district_id: 'NEWARK', apigw_prefix: 'us' }
   await withMockFetch({ 'zone-setup/address': { results: [] } }, async () => {
-    const zoneId = await lookupRCZone(city, '1 Unknown Pl')
-    if (zoneId !== null) throw new Error('Expected null')
+    const zoneIds = await lookupRCZone(city, '1 Unknown Pl')
+    if (zoneIds !== null) throw new Error('Expected null')
   })
 })
 
@@ -153,7 +166,7 @@ Deno.test('fetchRCMonth: returns events, skipping cancelled status', async () =>
           events: [
             { date: '2026-05-04', day: 4, collections: [{ id: 2665, status: '' }, { id: 4952, status: '' }] },
             { date: '2026-05-11', day: 11, collections: [{ id: 2665, status: '' }] },
-            { date: '2026-05-18', day: 18, collections: [{ id: 2665, status: 'cancelled' }] }, // cancelled — must be skipped
+            { date: '2026-05-18', day: 18, collections: [{ id: 2665, status: 'cancelled' }] }, // cancelled — skipped
           ],
         }],
       }],
@@ -167,6 +180,30 @@ Deno.test('fetchRCMonth: returns events, skipping cancelled status', async () =>
     if (dates.includes('2026-05-18')) throw new Error('Cancelled event should be excluded')
     const may4Events = events.filter(e => e.date === '2026-05-04')
     if (may4Events.length !== 2) throw new Error(`Expected 2 events on May 4, got ${may4Events.length}`)
+  })
+})
+
+Deno.test('fetchRCMonth: keeps holiday-postponed events (non-cancel status)', async () => {
+  const city: RCCity = { project_id: 'NJ_ESS', district_id: 'NEWARK', apigw_prefix: 'us' }
+  const typeMap = new Map([['2665', 'garbage']])
+  await withMockFetch({
+    'app_data_zone_schedules': {
+      DATA: [{
+        year: 2026,
+        months: [{
+          month: 5,
+          events: [
+            { date: '2026-05-05', day: 5, collections: [{ id: 2665, status: 'postponed' }] }, // postponed — keep
+            { date: '2026-05-06', day: 6, collections: [{ id: 2665, status: '' }] },           // normal — keep
+          ],
+        }],
+      }],
+    },
+  }, async () => {
+    const events = await fetchRCMonth(city, 'zone-z14089', typeMap, 2026, 5)
+    const dates = events.map(e => e.date)
+    if (!dates.includes('2026-05-05')) throw new Error('Postponed event should be included')
+    if (!dates.includes('2026-05-06')) throw new Error('Normal event should be included')
   })
 })
 
@@ -207,7 +244,7 @@ Deno.test('getEventsFromRCZone: date-range filter excludes past and far-future e
     '/collections': { status: 'success', collection: { types: { 'collection-2665': { title: 'Garbage' } } } },
     'app_data_zone_schedules': scheduleBody,
   }, async () => {
-    const events = await getEventsFromRCZone(city, 'zone-z14089', 30)
+    const events = await getEventsFromRCZone(city, ['zone-z14089'], 30)
     const dates = events.map(e => e.date)
     if (dates.includes(localStr(pastDate))) throw new Error('Past event should be excluded')
     if (!dates.includes(localStr(todayDate))) throw new Error('Today event should be included')
@@ -238,7 +275,7 @@ Deno.test('getEventsFromRCZone: deduplicates same date+type pairs', async () => 
       }],
     },
   }, async () => {
-    const events = await getEventsFromRCZone(city, 'zone-z14089', 60)
+    const events = await getEventsFromRCZone(city, ['zone-z14089'], 60)
     const garbageCount = events.filter(e => e.event_type === 'garbage').length
     if (garbageCount !== 1) throw new Error(`Expected 1 garbage event after dedup, got ${garbageCount}`)
   })

@@ -203,7 +203,7 @@ export async function handler(req: Request): Promise<Response> {
         provider_data: {
           project_id: rcResult.city.project_id,
           district_id: rcResult.city.district_id,
-          zone_id: rcResult.zone_id,
+          zone_ids: rcResult.zone_ids,
           apigw_prefix: rcResult.city.apigw_prefix,
         },
       }
@@ -277,7 +277,8 @@ async function eventsFromCache(
     const pd = cached.provider_data as {
       project_id: string
       district_id: string
-      zone_id: string
+      zone_ids?: string[]   // current format
+      zone_id?: string      // legacy single-zone format
       apigw_prefix: string
     } | null
     if (pd) {
@@ -287,7 +288,8 @@ async function eventsFromCache(
         district_id: pd.district_id,
         apigw_prefix: /^[a-z0-9-]{1,16}$/.test(rawPrefix) ? rawPrefix : 'us',
       }
-      return getEventsFromRCZone(rcCity, pd.zone_id, 60)
+      const zoneIds = pd.zone_ids ?? (pd.zone_id ? [pd.zone_id] : null)
+      if (zoneIds) return getEventsFromRCZone(rcCity, zoneIds, 60)
     }
   }
 
