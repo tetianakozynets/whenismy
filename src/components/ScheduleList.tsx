@@ -6,6 +6,14 @@ import { formatPickupDate, daysUntil, daysUntilLabel } from '../lib/formatting'
 import { HolidayMap } from '../lib/holidays'
 import { colors, spacing } from '../constants/theme'
 
+const EVENT_TYPE_LABELS: Record<string, string> = {
+  garbage: 'Garbage',
+  recycling: 'Recycling',
+  yard_waste: 'Yard Waste',
+  organics: 'Composting',
+  bulk_waste: 'Bulk Items',
+}
+
 interface DayGroup {
   date: string
   events: PickupEvent[]
@@ -45,21 +53,25 @@ export function ScheduleList({ events, skipFirst = false, holidays }: Props) {
 
 function ScheduleDay({ group, isFirst, holidayName }: { group: DayGroup; isFirst: boolean; holidayName?: string }) {
   const days = daysUntil(group.date)
+  const typeLabels = group.events.map(e => EVENT_TYPE_LABELS[e.event_type] ?? e.event_type).join(', ')
   return (
-    <View style={[styles.row, isFirst ? styles.rowAccent : styles.rowMuted]}>
+    <View style={[styles.row, holidayName ? styles.rowHoliday : isFirst ? styles.rowAccent : styles.rowMuted]}>
       <View style={styles.header}>
         <Text style={styles.date}>{formatPickupDate(group.date)}</Text>
-        <Text style={[styles.countdown, isFirst && styles.countdownAccent]}>
+        <Text style={[styles.countdown, !holidayName && isFirst && styles.countdownAccent]}>
           {daysUntilLabel(days)}
         </Text>
       </View>
-      <View style={styles.badges}>
-        {group.events.map(e => (
-          <EventTypeBadge key={e.event_type} eventType={e.event_type} />
-        ))}
-      </View>
-      {holidayName && (
-        <Text style={styles.holidayNote}>🏛 {holidayName} — pickup may be delayed. Check with your city.</Text>
+      {holidayName ? (
+        <Text style={styles.holidayAdvisory}>
+          🏛 {holidayName} — {typeLabels} pickup may be cancelled. Check your township's website.
+        </Text>
+      ) : (
+        <View style={styles.badges}>
+          {group.events.map(e => (
+            <EventTypeBadge key={e.event_type} eventType={e.event_type} />
+          ))}
+        </View>
       )}
     </View>
   )
@@ -106,10 +118,13 @@ const styles = StyleSheet.create({
     height: 1,
     backgroundColor: colors.border,
   },
-  holidayNote: {
+  rowHoliday: {
+    borderLeftColor: '#92400e',
+  },
+  holidayAdvisory: {
     fontSize: 12,
-    color: colors.textSecondary,
+    color: '#92400e',
     fontStyle: 'italic',
-    marginTop: 2,
+    lineHeight: 17,
   },
 })

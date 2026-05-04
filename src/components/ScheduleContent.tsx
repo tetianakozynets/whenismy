@@ -52,8 +52,21 @@ export function ScheduleContent({ result, onBack, address }: Props) {
 
   const grouped = groupByDate(events)
   const dates = Array.from(grouped.keys())
-  const firstDayEvents = grouped.get(dates[0]) ?? []
-  const remainingEvents = dates.slice(1).flatMap(d => grouped.get(d) ?? [])
+
+  // Skip holiday dates for the hero card — find the first non-holiday pickup
+  const holidayDates = new Set(dates.filter(d => holidays.size && holidays.has(d)))
+  const heroDate = dates.find(d => !holidayDates.has(d)) ?? dates[0]
+  const firstDayEvents = grouped.get(heroDate) ?? []
+
+  // If we skipped a holiday before the hero date, surface it as an advisory on the card
+  const skippedHolidayDate = heroDate !== dates[0] ? dates[0] : undefined
+  const skippedHoliday = skippedHolidayDate ? {
+    date: skippedHolidayDate,
+    name: holidays.get(skippedHolidayDate)!,
+    events: grouped.get(skippedHolidayDate) ?? [],
+  } : undefined
+
+  const remainingEvents = dates.filter(d => d !== heroDate).flatMap(d => grouped.get(d) ?? [])
 
   const thisWeek = remainingEvents.filter(e => daysUntil(e.date) <= 7)
   const hasMore = remainingEvents.some(e => daysUntil(e.date) > 7)
@@ -84,7 +97,7 @@ export function ScheduleContent({ result, onBack, address }: Props) {
         </View>
       )}
       {address ? <Text style={styles.addressLabel}>{address}</Text> : null}
-      <NextPickupCard events={firstDayEvents} todayNote={todayHolidayNote(holidays)} />
+      <NextPickupCard events={firstDayEvents} todayNote={todayHolidayNote(holidays)} skippedHoliday={skippedHoliday} />
       {listEvents.length > 0 && (
         <>
           <Text style={styles.sectionHeader}>This week</Text>

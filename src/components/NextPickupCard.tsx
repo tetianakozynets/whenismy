@@ -5,14 +5,24 @@ import { PickupEvent } from '../lib/types'
 import { EventTypeBadge } from './EventTypeBadge'
 import { eventTypeIcon } from '../lib/event-icons'
 import { formatPickupDate, daysUntil, daysUntilLabel } from '../lib/formatting'
+import { formatHolidayDate } from '../lib/holidays'
 import { spacing, radius } from '../constants/theme'
+
+const EVENT_TYPE_LABELS: Record<string, string> = {
+  garbage: 'Garbage',
+  recycling: 'Recycling',
+  yard_waste: 'Yard Waste',
+  organics: 'Composting',
+  bulk_waste: 'Bulk Items',
+}
 
 interface Props {
   events: PickupEvent[]
   todayNote?: string
+  skippedHoliday?: { date: string; name: string; events: PickupEvent[] }
 }
 
-export function NextPickupCard({ events, todayNote }: Props) {
+export function NextPickupCard({ events, todayNote, skippedHoliday }: Props) {
   const first = events[0]
   const days = daysUntil(first.date)
   return (
@@ -35,6 +45,14 @@ export function NextPickupCard({ events, todayNote }: Props) {
       </View>
       <Text style={styles.date}>{formatPickupDate(first.date)}</Text>
       <Text style={styles.countdown}>{daysUntilLabel(days)}</Text>
+      {skippedHoliday && (
+        <View style={styles.holidayNote}>
+          <Text style={styles.holidayNoteText}>
+            {formatHolidayDate(skippedHoliday.date)} 🏛 {skippedHoliday.name} —{' '}
+            {skippedHoliday.events.map(e => EVENT_TYPE_LABELS[e.event_type] ?? e.event_type).join(', ')} pickup may be cancelled. Check your township's website.
+          </Text>
+        </View>
+      )}
       {todayNote && (
         <View style={styles.holidayNote}>
           <Text style={styles.holidayNoteText}>🏛 {todayNote}</Text>
