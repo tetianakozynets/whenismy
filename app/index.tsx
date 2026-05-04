@@ -62,8 +62,11 @@ export default function HomeScreen() {
       // Plan 2 limitation: the lookup-schedule Edge Function returns events for places[0]
       // regardless of which match the user selects. A proper re-fetch by place ID
       // requires extending the Edge Function to accept a placeId param (Plan 3+).
-      const stored = scheduleStore.getResult()
-      if (stored) setResult(stored)
+      const stored = scheduleStore.get()
+      if (stored) {
+        setResult(stored.result)
+        setAddress([toTitleCase(stored.street), toTitleCase(stored.city), stored.state.toUpperCase()].filter(Boolean).join(', '))
+      }
     } else {
       router.push('/schedule')
     }

@@ -42,8 +42,9 @@ export async function geocodeNYC(street: string, city: string, state: string): P
   if (!res.ok) return null
   const data = await res.json()
   const feat = data?.features?.[0]
-  // Require an address-level match so city/neighbourhood fallbacks don't silently succeed
-  if (!feat || feat.properties?.layer !== 'address') return null
+  // Require a result with a house number — nycpad returns layer="venue" (not "address"),
+  // so checking housenumber is more robust than checking layer value
+  if (!feat || !feat.properties?.housenumber) return null
   const [lng, lat] = feat.geometry.coordinates
   return { lat, lng }
 }
