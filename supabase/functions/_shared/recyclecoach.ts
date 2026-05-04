@@ -32,10 +32,11 @@ export async function searchRCCity(city: string, state: string): Promise<RCCity 
   if (!results.length) return null
   const hit = results[0] as Record<string, unknown>
   if (!hit?.sku) return null
+  const rawPrefix = String(hit.apigw_prefix ?? 'us')
   return {
     project_id: String(hit.sku),
     district_id: String(hit.district_id ?? ''),
-    apigw_prefix: String(hit.apigw_prefix ?? 'us'),
+    apigw_prefix: /^[a-z0-9-]{1,16}$/.test(rawPrefix) ? rawPrefix : 'us',
   }
 }
 
@@ -150,8 +151,15 @@ export async function getEventsFromRCZone(
   }
   const todayStr = localStr(now)
   const endStr = localStr(endDate)
+  const seen = new Set<string>()
   return events
     .filter(e => e.date >= todayStr && e.date <= endStr)
+    .filter(e => {
+      const key = `${e.date}|${e.event_type}`
+      if (seen.has(key)) return false
+      seen.add(key)
+      return true
+    })
     .sort((a, b) => a.date.localeCompare(b.date))
 }
 

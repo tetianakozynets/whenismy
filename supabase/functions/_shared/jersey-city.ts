@@ -47,7 +47,8 @@ async function queryJCZoneName(apiUrl: string, lat: number, lng: number): Promis
   const res = await fetch(url)
   if (!res.ok) return null
   const data = await res.json().catch(() => null)
-  return (data?.results?.[0]?.name as string | undefined) ?? null
+  const name = data?.results?.[0]?.name
+  return typeof name === 'string' ? name : null
 }
 
 const DOW_INDEX: Record<string, number> = {

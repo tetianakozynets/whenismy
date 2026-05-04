@@ -170,6 +170,10 @@ export async function handler(req: Request): Promise<Response> {
       if (jcResult.garbage_days.length) supportedTypes.push('garbage')
       if (jcResult.recycling_days.length) supportedTypes.push('recycling')
 
+      if (!supportedTypes.length) {
+        return json({ error: 'Address not covered', notCovered: true }, 404)
+      }
+
       const cacheRow = {
         address_key: addressKey,
         recollect_place_id: null,
@@ -277,10 +281,11 @@ async function eventsFromCache(
       apigw_prefix: string
     } | null
     if (pd) {
+      const rawPrefix = pd.apigw_prefix ?? 'us'
       const rcCity: RCCity = {
         project_id: pd.project_id,
         district_id: pd.district_id,
-        apigw_prefix: pd.apigw_prefix ?? 'us',
+        apigw_prefix: /^[a-z0-9-]{1,16}$/.test(rawPrefix) ? rawPrefix : 'us',
       }
       return getEventsFromRCZone(rcCity, pd.zone_id, 60)
     }
