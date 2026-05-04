@@ -1,7 +1,7 @@
 import React, { useState } from 'react'
 import { View, Text, Pressable, StyleSheet, useWindowDimensions } from 'react-native'
 import { PickupEvent } from '../lib/types'
-import { HolidayMap } from '../lib/holidays'
+import { HolidayMap, formatHolidayDate } from '../lib/holidays'
 import { colors, spacing, radius, SPLIT_BREAKPOINT } from '../constants/theme'
 import { eventTypeIcon } from '../lib/event-icons'
 
@@ -162,7 +162,7 @@ export function PickupCalendar({ events, holidays }: Props) {
         <View style={styles.holidayNotes}>
           {monthHolidays.map(h => (
             <Text key={h.date} style={styles.holidayNoteText}>
-              🏛 {h.name} — many cities have delayed or cancelled pickup. Check your city's website.
+              {formatHolidayDate(h.date)} 🏛 {h.name} — many cities have delayed or cancelled pickup. Check your city's website.
             </Text>
           ))}
         </View>
