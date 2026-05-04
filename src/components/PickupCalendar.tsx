@@ -128,13 +128,15 @@ export function PickupCalendar({ events, holidays }: Props) {
                         <Text style={styles.pillText} numberOfLines={1}>🏛 Holiday</Text>
                       </View>
                     )}
-                    {dayEvents.map(type => (
-                      <View key={type} style={[styles.pill, { backgroundColor: eventColor(type) }]}>
-                        <Text style={styles.pillText} numberOfLines={1}>
-                          {eventTypeIcon(type)} {EVENT_SHORT_LABELS[type] ?? type}
-                        </Text>
-                      </View>
-                    ))}
+                    <View style={holidayName ? styles.dimmed : undefined}>
+                      {dayEvents.map(type => (
+                        <View key={type} style={[styles.pill, { backgroundColor: eventColor(type) }]}>
+                          <Text style={styles.pillText} numberOfLines={1}>
+                            {eventTypeIcon(type)} {EVENT_SHORT_LABELS[type] ?? type}
+                          </Text>
+                        </View>
+                      ))}
+                    </View>
                   </View>
                 ) : (
                   // Mobile: small colored badge with emoji only
@@ -144,11 +146,13 @@ export function PickupCalendar({ events, holidays }: Props) {
                         <Text style={styles.badgeEmoji}>🏛</Text>
                       </View>
                     )}
-                    {dayEvents.map(type => (
-                      <View key={type} style={[styles.badge, { backgroundColor: eventColor(type) }]}>
-                        <Text style={styles.badgeEmoji}>{eventTypeIcon(type)}</Text>
-                      </View>
-                    ))}
+                    <View style={[styles.badgeRow, holidayName ? styles.dimmed : undefined]}>
+                      {dayEvents.map(type => (
+                        <View key={type} style={[styles.badge, { backgroundColor: eventColor(type) }]}>
+                          <Text style={styles.badgeEmoji}>{eventTypeIcon(type)}</Text>
+                        </View>
+                      ))}
+                    </View>
                   </View>
                 )}
               </View>
@@ -240,6 +244,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: '#92400e',
+  },
+  dimmed: {
+    opacity: 0.35,
   },
 
   // Notes below calendar
