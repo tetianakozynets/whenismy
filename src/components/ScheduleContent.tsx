@@ -55,9 +55,9 @@ export function ScheduleContent({ result, onBack, address, showBack = true, save
 
   const [addrStreet, addrCity, addrState] = (place.address_key || '||').split('|')
   const isCurrentAddressSaved = savedAddress !== undefined && (
-    savedAddress.street.toLowerCase().trim() === addrStreet.trim() &&
-    savedAddress.city.toLowerCase().trim() === addrCity.trim() &&
-    savedAddress.state.toLowerCase().trim() === addrState.trim()
+    savedAddress.street.toLowerCase().trim() === addrStreet.toLowerCase().trim() &&
+    savedAddress.city.toLowerCase().trim() === addrCity.toLowerCase().trim() &&
+    savedAddress.state.toLowerCase().trim() === addrState.toLowerCase().trim()
   )
   const grouped = groupByDate(events)
   const dates = Array.from(grouped.keys())
