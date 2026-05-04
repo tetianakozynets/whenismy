@@ -82,7 +82,7 @@ export default function HomeScreen() {
 
   const formContent = (
     <>
-      <Text style={styles.title}>whenIsMy</Text>
+      <Text style={styles.title}>WIM</Text>
       <Text style={styles.subtitle}>
         Find your garbage and recycling pickup days
       </Text>

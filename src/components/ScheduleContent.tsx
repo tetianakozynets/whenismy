@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { View, Text, ScrollView, Pressable, StyleSheet, useWindowDimensions } from 'react-native'
 import { router } from 'expo-router'
 import { LookupResponse, PickupEvent } from '../lib/types'
@@ -6,6 +6,7 @@ import { NextPickupCard } from './NextPickupCard'
 import { ScheduleList } from './ScheduleList'
 import { PickupCalendar } from './PickupCalendar'
 import { daysUntil } from '../lib/formatting'
+import { getUSHolidays, todayHolidayNote, HolidayMap } from '../lib/holidays'
 import { colors, spacing, radius, SPLIT_BREAKPOINT } from '../constants/theme'
 import { useAuth } from '../lib/auth-context'
 
@@ -29,9 +30,14 @@ export function ScheduleContent({ result, onBack, address }: Props) {
   const { events = [], place } = result
   const [showAll, setShowAll] = useState(false)
   const [showCalendar, setShowCalendar] = useState(false)
+  const [holidays, setHolidays] = useState<HolidayMap>(new Map())
   const { user } = useAuth()
   const { width } = useWindowDimensions()
   const isWide = width >= SPLIT_BREAKPOINT
+
+  useEffect(() => {
+    getUSHolidays().then(setHolidays)
+  }, [])
 
   if (events.length === 0) {
     return (
@@ -78,11 +84,11 @@ export function ScheduleContent({ result, onBack, address }: Props) {
         </View>
       )}
       {address ? <Text style={styles.addressLabel}>{address}</Text> : null}
-      <NextPickupCard events={firstDayEvents} />
+      <NextPickupCard events={firstDayEvents} todayNote={todayHolidayNote(holidays)} />
       {listEvents.length > 0 && (
         <>
           <Text style={styles.sectionHeader}>This week</Text>
-          <ScheduleList events={listEvents} />
+          <ScheduleList events={listEvents} holidays={holidays} />
         </>
       )}
       {hasMore && (
@@ -96,9 +102,6 @@ export function ScheduleContent({ result, onBack, address }: Props) {
           </Text>
         </Pressable>
       )}
-      <Text style={styles.disclaimer}>
-        Schedules may shift on public holidays — check your municipality's website.
-      </Text>
       {isWide ? (
         <>
           <Text style={styles.sectionHeader}>This month</Text>

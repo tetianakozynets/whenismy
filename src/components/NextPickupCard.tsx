@@ -9,9 +9,10 @@ import { spacing, radius } from '../constants/theme'
 
 interface Props {
   events: PickupEvent[]
+  todayNote?: string
 }
 
-export function NextPickupCard({ events }: Props) {
+export function NextPickupCard({ events, todayNote }: Props) {
   const first = events[0]
   const days = daysUntil(first.date)
   return (
@@ -34,6 +35,11 @@ export function NextPickupCard({ events }: Props) {
       </View>
       <Text style={styles.date}>{formatPickupDate(first.date)}</Text>
       <Text style={styles.countdown}>{daysUntilLabel(days)}</Text>
+      {todayNote && (
+        <View style={styles.holidayNote}>
+          <Text style={styles.holidayNoteText}>🏛 {todayNote}</Text>
+        </View>
+      )}
     </LinearGradient>
   )
 }
@@ -65,4 +71,15 @@ const styles = StyleSheet.create({
   },
   date: { fontSize: 18, fontWeight: '600', color: '#FFFFFF' },
   countdown: { fontSize: 14, color: 'rgba(255,255,255,0.7)' },
+  holidayNote: {
+    marginTop: 4,
+    backgroundColor: 'rgba(0,0,0,0.2)',
+    borderRadius: 6,
+    padding: 8,
+  },
+  holidayNoteText: {
+    fontSize: 12,
+    color: 'rgba(255,255,255,0.9)',
+    lineHeight: 16,
+  },
 })
