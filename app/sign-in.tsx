@@ -1,14 +1,21 @@
 import React, { useState } from 'react'
 import {
   View, Text, TextInput, Pressable, StyleSheet,
-  ActivityIndicator, SafeAreaView, KeyboardAvoidingView, Platform, ScrollView,
+  ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView,
 } from 'react-native'
+import { LinearGradient } from 'expo-linear-gradient'
 import { router } from 'expo-router'
 import { signUp, signIn } from '../src/lib/auth'
 import { colors, spacing, radius } from '../src/constants/theme'
 import { scheduleStore } from '../src/lib/schedule-store'
 import { saveAddress, savePickupEvents } from '../src/lib/user-api'
 import { registerPushToken } from '../src/lib/push-notifications'
+
+const PILLS = [
+  { icon: '🗑️', label: 'Garbage' },
+  { icon: '♻️', label: 'Recycling' },
+  { icon: '🍂', label: 'Yard Waste' },
+]
 
 export default function SignInScreen() {
   const [mode, setMode] = useState<'signin' | 'signup'>('signup')
@@ -38,14 +45,14 @@ export default function SignInScreen() {
         if (err) { setError(err.message); return }
         const userId = data.user?.id
         if (userId) {
-          const storedSchedule = scheduleStore.get()
-          if (storedSchedule) {
-            await saveAddress(userId, storedSchedule.street, storedSchedule.city, storedSchedule.state, storedSchedule.result.place)
-            await savePickupEvents(userId, storedSchedule.result.events)
+          const stored = scheduleStore.get()
+          if (stored) {
+            await saveAddress(userId, stored.street, stored.city, stored.state, stored.result.place)
+            await savePickupEvents(userId, stored.result.events)
           }
-          registerPushToken(userId) // fire and forget
+          registerPushToken(userId)
         }
-        router.back()
+        router.replace('/(tabs)/schedule')
       }
     } finally {
       setLoading(false)
@@ -53,21 +60,42 @@ export default function SignInScreen() {
   }
 
   return (
-    <SafeAreaView style={styles.safe}>
-      <KeyboardAvoidingView
-        style={styles.flex}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      >
-        <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
+    <KeyboardAvoidingView
+      style={styles.flex}
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+    >
+      <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
+        {/* Hero */}
+        <LinearGradient
+          colors={['#0d0d1a', '#1a1a2e']}
+          style={styles.hero}
+        >
           <Pressable onPress={() => router.back()} style={styles.backRow}>
             <Text style={styles.backLink}>← Back</Text>
           </Pressable>
-          <Text style={styles.title}>Never miss a pickup</Text>
-          <Text style={styles.subtitle}>
-            {mode === 'signup'
-              ? 'Create an account to get reminders the night before.'
-              : 'Sign in to manage your reminders.'}
+          <Text style={styles.heroTitle}>WIM</Text>
+          <Text style={styles.heroSub}>When Is My</Text>
+          <Text style={styles.heroTagline}>Never miss garbage day again.</Text>
+          <View style={styles.pills}>
+            {PILLS.map(p => (
+              <View key={p.label} style={styles.pill}>
+                <Text style={styles.pillText}>{p.icon} {p.label}</Text>
+              </View>
+            ))}
+          </View>
+        </LinearGradient>
+
+        {/* Form panel */}
+        <View style={styles.panel}>
+          <Text style={styles.panelTitle}>
+            {mode === 'signup' ? 'Create your account' : 'Sign in'}
           </Text>
+          <Text style={styles.panelSub}>
+            {mode === 'signup'
+              ? 'Save your address and get reminders the night before.'
+              : 'Welcome back. Sign in to your account.'}
+          </Text>
+
           <TextInput
             style={styles.input}
             placeholder="Email"
@@ -90,8 +118,10 @@ export default function SignInScreen() {
             onSubmitEditing={handleSubmit}
             testID="input-password"
           />
+
           {error && <Text style={styles.error}>{error}</Text>}
           {info && <Text style={styles.info}>{info}</Text>}
+
           <Pressable
             style={[styles.button, loading && styles.buttonDisabled]}
             onPress={handleSubmit}
@@ -105,6 +135,7 @@ export default function SignInScreen() {
                 </Text>
             }
           </Pressable>
+
           <Pressable
             onPress={() => { setMode(m => m === 'signup' ? 'signin' : 'signup'); setError(null); setInfo(null) }}
             style={styles.toggleRow}
@@ -113,29 +144,68 @@ export default function SignInScreen() {
               {mode === 'signup' ? 'Already have an account? Sign in' : "Don't have an account? Sign up"}
             </Text>
           </Pressable>
-        </ScrollView>
-      </KeyboardAvoidingView>
-    </SafeAreaView>
+        </View>
+      </ScrollView>
+    </KeyboardAvoidingView>
   )
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: colors.background },
-  flex: { flex: 1 },
-  container: { flexGrow: 1, padding: spacing.lg, gap: 12, justifyContent: 'center' },
-  backRow: { paddingBottom: spacing.md },
+  flex: { flex: 1, backgroundColor: colors.background },
+  scroll: { flexGrow: 1 },
+
+  // Hero
+  hero: {
+    padding: spacing.lg,
+    paddingTop: 60,
+    paddingBottom: spacing.xl,
+    gap: spacing.sm,
+    minHeight: 280,
+    justifyContent: 'center',
+  },
+  backRow: { position: 'absolute', top: spacing.lg, left: spacing.lg },
   backLink: { color: colors.primary, fontSize: 15 },
-  title: { fontSize: 28, fontWeight: '700', color: colors.text, textAlign: 'center' },
-  subtitle: { fontSize: 15, color: colors.textSecondary, textAlign: 'center' },
+  heroTitle: { fontSize: 48, fontWeight: '900', color: colors.primary, letterSpacing: 2 },
+  heroSub: { fontSize: 12, color: colors.textSecondary, textTransform: 'uppercase', letterSpacing: 3 },
+  heroTagline: { fontSize: 16, color: colors.text, fontWeight: '500', marginTop: spacing.sm },
+  pills: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginTop: spacing.sm },
+  pill: {
+    backgroundColor: colors.card,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 20,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 6,
+  },
+  pillText: { fontSize: 13, color: colors.textSecondary },
+
+  // Form panel
+  panel: {
+    flex: 1,
+    backgroundColor: colors.card,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+    padding: spacing.lg,
+    gap: spacing.md,
+  },
+  panelTitle: { fontSize: 22, fontWeight: '700', color: colors.text },
+  panelSub: { fontSize: 14, color: colors.textSecondary },
   input: {
-    borderWidth: 1, borderColor: colors.border, borderRadius: radius.sm,
-    padding: spacing.md, fontSize: 16, backgroundColor: colors.card, color: colors.text,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radius.sm,
+    padding: spacing.md,
+    fontSize: 16,
+    backgroundColor: colors.background,
+    color: colors.text,
   },
   error: { color: colors.error, fontSize: 14 },
   info: { color: '#10B981', fontSize: 14 },
   button: {
-    backgroundColor: colors.primary, padding: spacing.md,
-    borderRadius: radius.sm, alignItems: 'center',
+    backgroundColor: colors.primary,
+    padding: spacing.md,
+    borderRadius: radius.sm,
+    alignItems: 'center',
   },
   buttonDisabled: { opacity: 0.6 },
   buttonText: { color: '#fff', fontSize: 16, fontWeight: '600' },

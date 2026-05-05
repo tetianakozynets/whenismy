@@ -2,7 +2,7 @@ import React, { useState } from 'react'
 import {
   View, Text, SafeAreaView, StyleSheet, Alert,
 } from 'react-native'
-import { router } from 'expo-router'
+import { router, Redirect } from 'expo-router'
 import { AddressForm } from '../src/components/AddressForm'
 import { AddressMatchPicker } from '../src/components/AddressMatchPicker'
 import { SplitLayout } from '../src/components/SplitLayout'
@@ -13,6 +13,7 @@ import { useSplitLayout } from '../src/lib/use-split-layout'
 import { PlaceMatch, LookupResponse } from '../src/lib/types'
 import { toTitleCase } from '../src/lib/formatting'
 import { colors, spacing } from '../src/constants/theme'
+import { useAuth } from '../src/lib/auth-context'
 
 export default function HomeScreen() {
   const [loading, setLoading] = useState(false)
@@ -22,6 +23,8 @@ export default function HomeScreen() {
   const [notFound, setNotFound] = useState(false)
   const [resetKey, setResetKey] = useState(0)
   const isSplit = useSplitLayout()
+  const { user } = useAuth()
+  if (user) return <Redirect href="/(tabs)/schedule" />
 
   async function handleLookup(street: string, city: string, state: string) {
     setLoading(true)

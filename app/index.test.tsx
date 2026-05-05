@@ -12,6 +12,14 @@ jest.mock('../src/lib/auth-context', () => ({
   useAuth: () => ({ user: null, session: null, loading: false }),
 }))
 
+jest.mock('../src/lib/user-api', () => ({
+  saveAddress: jest.fn().mockResolvedValue({}),
+  savePickupEvents: jest.fn().mockResolvedValue({}),
+  getPreferences: jest.fn().mockResolvedValue(null),
+  updateNotificationPreferences: jest.fn().mockResolvedValue({}),
+  deleteAccount: jest.fn().mockResolvedValue({}),
+}))
+
 jest.mock('../src/lib/use-split-layout', () => ({
   useSplitLayout: jest.fn().mockReturnValue(false),
 }))

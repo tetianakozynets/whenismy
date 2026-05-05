@@ -9,11 +9,14 @@ import { daysUntil } from '../lib/formatting'
 import { getUSHolidays, todayHolidayNote, HolidayMap } from '../lib/holidays'
 import { colors, spacing, radius, SPLIT_BREAKPOINT } from '../constants/theme'
 import { useAuth } from '../lib/auth-context'
+import { SaveAddressBanner } from './SaveAddressBanner'
 
 interface Props {
   result: LookupResponse
   onBack: () => void
   address?: string
+  showBack?: boolean          // default true — pass false from Schedule tab
+  savedAddress?: { street: string; city: string; state: string } | undefined
 }
 
 function groupByDate(events: PickupEvent[]): Map<string, PickupEvent[]> {
@@ -26,7 +29,7 @@ function groupByDate(events: PickupEvent[]): Map<string, PickupEvent[]> {
   return map
 }
 
-export function ScheduleContent({ result, onBack, address }: Props) {
+export function ScheduleContent({ result, onBack, address, showBack = true, savedAddress }: Props) {
   const { events = [], place } = result
   const [showAll, setShowAll] = useState(false)
   const [showCalendar, setShowCalendar] = useState(false)
@@ -50,6 +53,12 @@ export function ScheduleContent({ result, onBack, address }: Props) {
     )
   }
 
+  const [addrStreet, addrCity, addrState] = (place.address_key || '||').split('|')
+  const isCurrentAddressSaved = savedAddress !== undefined && (
+    savedAddress.street.toLowerCase().trim() === addrStreet.toLowerCase().trim() &&
+    savedAddress.city.toLowerCase().trim() === addrCity.toLowerCase().trim() &&
+    savedAddress.state.toLowerCase().trim() === addrState.toLowerCase().trim()
+  )
   const grouped = groupByDate(events)
   const dates = Array.from(grouped.keys())
 
@@ -75,14 +84,9 @@ export function ScheduleContent({ result, onBack, address }: Props) {
   return (
     <ScrollView contentContainerStyle={styles.scroll}>
       <View style={styles.topBar}>
-        {!isWide && (
+        {showBack && !isWide && (
           <Pressable onPress={onBack} accessibilityRole="button">
             <Text style={styles.backLink}>← Change address</Text>
-          </Pressable>
-        )}
-        {user && (
-          <Pressable onPress={() => router.push('/settings')} accessibilityRole="button" style={isWide && styles.gearRight}>
-            <Text style={styles.gear}>⚙️</Text>
           </Pressable>
         )}
       </View>
@@ -98,6 +102,17 @@ export function ScheduleContent({ result, onBack, address }: Props) {
       )}
       {address ? <Text style={styles.addressLabel}>{address}</Text> : null}
       <NextPickupCard events={firstDayEvents} todayNote={todayHolidayNote(holidays)} skippedHoliday={skippedHoliday} />
+      {user && !isCurrentAddressSaved && (
+        <SaveAddressBanner
+          userId={user.id}
+          street={addrStreet}
+          city={addrCity}
+          state={addrState}
+          place={place}
+          events={events}
+          isSaved={false}
+        />
+      )}
       {listEvents.length > 0 && (
         <>
           <Text style={styles.sectionHeader}>This week</Text>
@@ -165,8 +180,6 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.xs,
   },
   backLink: { color: colors.primary, fontSize: 15 },
-  gear: { fontSize: 20 },
-  gearRight: { marginLeft: 'auto' },
   sectionHeader: {
     fontSize: 11,
     fontWeight: '600',
