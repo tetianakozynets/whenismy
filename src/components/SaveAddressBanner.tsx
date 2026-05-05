@@ -18,6 +18,7 @@ interface Props {
 export function SaveAddressBanner({ userId, street, city, state, place, events, isSaved }: Props) {
   const [saved, setSaved] = useState(false)
   const [saving, setSaving] = useState(false)
+  const [saveError, setSaveError] = useState<string | null>(null)
 
   if (isSaved) return null
 
@@ -35,10 +36,16 @@ export function SaveAddressBanner({ userId, street, city, state, place, events, 
 
   async function handleSave() {
     setSaving(true)
-    await saveAddress(userId, street, city, state, place)
-    await savePickupEvents(userId, events)
-    setSaving(false)
-    setSaved(true)
+    setSaveError(null)
+    try {
+      await saveAddress(userId, street, city, state, place)
+      await savePickupEvents(userId, events)
+      setSaved(true)
+    } catch {
+      setSaveError('Could not save. Please try again.')
+    } finally {
+      setSaving(false)
+    }
   }
 
   return (
@@ -58,6 +65,7 @@ export function SaveAddressBanner({ userId, street, city, state, place, events, 
           : <Text style={styles.saveButtonText}>Save</Text>
         }
       </Pressable>
+      {saveError && <Text style={styles.errorText}>{saveError}</Text>}
     </View>
   )
 }
@@ -95,4 +103,5 @@ const styles = StyleSheet.create({
   },
   saveButtonText: { color: '#fff', fontSize: 13, fontWeight: '600' },
   savedText: { fontSize: 14, color: '#10B981', fontWeight: '500' },
+  errorText: { fontSize: 12, color: colors.error, marginTop: 4 },
 })
