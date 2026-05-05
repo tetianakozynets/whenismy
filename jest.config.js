@@ -9,6 +9,7 @@ module.exports = {
   testPathIgnorePatterns: [
     '/node_modules/',
     '/supabase/',
+    '/.worktrees/',
   ],
   moduleNameMapper: {
     '^@react-native-async-storage/async-storage$':
