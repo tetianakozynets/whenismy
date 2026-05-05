@@ -79,6 +79,8 @@ export default function ScheduleTab() {
       result={result}
       onBack={load}
       address={address}
+      showBack={false}
+      savedAddress={{ street: prefs.street, city: prefs.city, state: prefs.state }}
     />
   )
 }
