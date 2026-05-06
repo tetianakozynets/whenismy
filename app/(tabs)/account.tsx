@@ -1,8 +1,9 @@
 import React, { useEffect, useState } from 'react'
 import {
-  View, Text, Pressable, StyleSheet, SafeAreaView,
+  View, Text, Pressable, StyleSheet,
   ScrollView, Alert, ActivityIndicator,
 } from 'react-native'
+import { SafeAreaView } from 'react-native-safe-area-context'
 import { router } from 'expo-router'
 import { useAuth } from '../../src/lib/auth-context'
 import { signOut } from '../../src/lib/auth'

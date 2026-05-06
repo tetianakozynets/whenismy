@@ -65,3 +65,17 @@ export async function updateNotificationPreferences(
 export async function deleteAccount() {
   return supabase.rpc('delete_user')
 }
+
+export async function getManualPickupEvents(userId: string): Promise<import('./types').PickupEvent[]> {
+  const today = new Date().toISOString().slice(0, 10)
+  const { data } = await supabase
+    .from('pickup_events')
+    .select('event_date, event_type')
+    .eq('user_id', userId)
+    .eq('source', 'manual')
+    .gte('event_date', today)
+    .order('event_date')
+    .limit(90)
+  if (!data) return []
+  return data.map(r => ({ date: r.event_date as string, event_type: r.event_type as string }))
+}

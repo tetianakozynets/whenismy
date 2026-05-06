@@ -12,7 +12,6 @@ export default function RootLayout() {
         <Stack.Screen name="calendar-url" />
         <Stack.Screen name="sign-in" />
         <Stack.Screen name="notifications" />
-        <Stack.Screen name="settings" />
         <Stack.Screen name="manual-entry" />
       </Stack>
     </AuthProvider>

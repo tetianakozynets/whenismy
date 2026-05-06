@@ -1,7 +1,8 @@
 import React, { useState } from 'react'
 import {
-  View, Text, Pressable, StyleSheet, SafeAreaView, ScrollView, ActivityIndicator,
+  View, Text, Pressable, StyleSheet, ScrollView, ActivityIndicator, Alert,
 } from 'react-native'
+import { SafeAreaView } from 'react-native-safe-area-context'
 import { router } from 'expo-router'
 import { useAuth } from '../src/lib/auth-context'
 import { saveManualSchedules, generateEventsFromManual } from '../src/lib/manual-schedule'
@@ -60,27 +61,31 @@ export default function ManualEntryScreen() {
     if (schedules.length === 0) return
 
     setSaving(true)
-    await saveManualSchedules(user.id, schedules)
-
-    const events = schedules.flatMap(s => generateEventsFromManual(s))
-    events.sort((a, b) => a.date.localeCompare(b.date))
-    scheduleStore.set(
-      {
-        place: {
-          address_key: 'manual',
-          recollect_place_id: null,
-          latitude: null,
-          longitude: null,
-          timezone: null,
-          supported_event_types: schedules.map(s => s.event_type),
-          provider: null,
+    try {
+      await saveManualSchedules(user.id, schedules)
+      const events = schedules.flatMap(s => generateEventsFromManual(s))
+      events.sort((a, b) => a.date.localeCompare(b.date))
+      scheduleStore.set(
+        {
+          place: {
+            address_key: 'manual||',
+            recollect_place_id: null,
+            latitude: null,
+            longitude: null,
+            timezone: null,
+            supported_event_types: schedules.map(s => s.event_type),
+            provider: null,
+          },
+          events,
         },
-        events,
-      },
-      '', '', ''
-    )
-    setSaving(false)
-    router.replace('/schedule')
+        '', '', ''
+      )
+      router.replace('/(tabs)/schedule')
+    } catch {
+      Alert.alert('Error', 'Could not save your schedule. Please try again.')
+    } finally {
+      setSaving(false)
+    }
   }
 
   return (

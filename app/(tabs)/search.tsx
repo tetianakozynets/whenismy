@@ -1,11 +1,13 @@
 import React, { useState } from 'react'
-import { View, Text, Pressable, StyleSheet, SafeAreaView } from 'react-native'
-import { useWindowDimensions } from 'react-native'
+import { View, Text, Pressable, StyleSheet, useWindowDimensions } from 'react-native'
+import { SafeAreaView } from 'react-native-safe-area-context'
 import { AddressForm } from '../../src/components/AddressForm'
+import { WimLogo } from '../../src/components/WimLogo'
 import { AddressMatchPicker } from '../../src/components/AddressMatchPicker'
 import { ScheduleContent } from '../../src/components/ScheduleContent'
 import { SplitLayout } from '../../src/components/SplitLayout'
 import { SchedulePanel } from '../../src/components/SchedulePanel'
+import { router } from 'expo-router'
 import { lookupSchedule, isError } from '../../src/lib/api'
 import { scheduleStore } from '../../src/lib/schedule-store'
 import { toTitleCase } from '../../src/lib/formatting'
@@ -31,6 +33,7 @@ export default function SearchTab() {
     setLoading(false)
     if (isError(res)) {
       if (res.notFound) setNotFound(true)
+      else if (res.notCovered) router.push('/address-not-found')
       return
     }
     if (res.multiple && res.multiple.length >= 1) {
@@ -62,7 +65,7 @@ export default function SearchTab() {
 
   const formContent = (
     <>
-      <Text style={styles.title}>WIM</Text>
+      <WimLogo titleSize={36} />
       <Text style={styles.subtitle}>Search any address</Text>
       <AddressForm key={resetKey} onSubmit={handleLookup} loading={loading} />
       {notFound && (

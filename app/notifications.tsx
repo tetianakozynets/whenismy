@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react'
 import {
-  View, Text, Pressable, StyleSheet, SafeAreaView, ScrollView, ActivityIndicator,
+  View, Text, Pressable, StyleSheet, ScrollView, ActivityIndicator,
 } from 'react-native'
+import { SafeAreaView } from 'react-native-safe-area-context'
 import { router } from 'expo-router'
 import { useAuth } from '../src/lib/auth-context'
 import { getPreferences, updateNotificationPreferences } from '../src/lib/user-api'
@@ -65,7 +66,7 @@ export default function NotificationsScreen() {
         </Text>
 
         {loading
-          ? <ActivityIndicator color={colors.primary} style={{ marginTop: spacing.xl }} />
+          ? <ActivityIndicator testID="activity-indicator" color={colors.primary} style={{ marginTop: spacing.xl }} />
           : <>
               {(supportedTypes.length === 0 || supportedTypes.includes('garbage')) && (
                 <NotificationToggle label="Garbage" icon="🗑️" value={garbage} onValueChange={setGarbage} />

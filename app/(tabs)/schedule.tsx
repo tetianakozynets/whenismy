@@ -1,10 +1,11 @@
 import React, { useEffect, useState, useCallback } from 'react'
 import {
-  View, Text, Pressable, StyleSheet, ActivityIndicator, SafeAreaView,
+  View, Text, Pressable, StyleSheet, ActivityIndicator,
 } from 'react-native'
+import { SafeAreaView } from 'react-native-safe-area-context'
 import { router } from 'expo-router'
 import { useAuth } from '../../src/lib/auth-context'
-import { getPreferences } from '../../src/lib/user-api'
+import { getPreferences, getManualPickupEvents } from '../../src/lib/user-api'
 import { lookupSchedule, isError } from '../../src/lib/api'
 import { ScheduleContent } from '../../src/components/ScheduleContent'
 import { LookupResponse, UserPreferences } from '../../src/lib/types'
@@ -23,7 +24,28 @@ export default function ScheduleTab() {
     setLoadError(null)
     setResult(null)
     const p = await getPreferences(user.id)
-    if (!p?.street) { setPrefs(false); return }
+    if (!p?.street) {
+      const manualEvents = await getManualPickupEvents(user.id)
+      if (manualEvents.length > 0) {
+        setResult({
+          place: {
+            address_key: 'manual||',
+            recollect_place_id: null,
+            latitude: null,
+            longitude: null,
+            timezone: null,
+            supported_event_types: [...new Set(manualEvents.map(e => e.event_type))],
+            provider: null,
+          },
+          events: manualEvents,
+        })
+        // Sentinel prefs so ScheduleContent receives a matching savedAddress (suppresses save banner)
+        setPrefs({ street: 'manual', city: '', state: '' } as UserPreferences)
+      } else {
+        setPrefs(false)
+      }
+      return
+    }
     setPrefs(p)
     const res = await lookupSchedule(p.street, p.city, p.state)
     if (isError(res)) { setLoadError(res.error); return }
@@ -72,7 +94,10 @@ export default function ScheduleTab() {
     )
   }
 
-  const address = [toTitleCase(prefs.street), toTitleCase(prefs.city), prefs.state.toUpperCase()].join(', ')
+  const isManual = prefs.street === 'manual' && !prefs.city
+  const address = isManual
+    ? undefined
+    : [toTitleCase(prefs.street), toTitleCase(prefs.city), prefs.state.toUpperCase()].join(', ')
 
   return (
     <ScheduleContent
