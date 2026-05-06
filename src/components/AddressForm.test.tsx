@@ -3,21 +3,32 @@ import { render, fireEvent } from '@testing-library/react-native'
 import { AddressForm } from './AddressForm'
 
 describe('AddressForm', () => {
-  it('calls onSubmit with trimmed inputs, NY selected by default', () => {
+  it('calls onSubmit with trimmed street and auto-filled "New York City" when NYC is selected', () => {
     const onSubmit = jest.fn()
     const { getByTestId } = render(<AddressForm onSubmit={onSubmit} loading={false} />)
     fireEvent.changeText(getByTestId('input-street'), '  123 Main St  ')
-    fireEvent.changeText(getByTestId('input-city'), 'Springfield')
+    // City is locked to "New York City" when NYC is selected — changeText is a no-op
+    fireEvent.changeText(getByTestId('input-city'), 'Ignored')
     fireEvent.press(getByTestId('submit-button'))
-    expect(onSubmit).toHaveBeenCalledWith('123 Main St', 'Springfield', 'NY')
+    expect(onSubmit).toHaveBeenCalledWith('123 Main St', 'New York City', 'NY')
+  })
+
+  it('clears city and makes it editable when switching from NYC to NJ', () => {
+    const onSubmit = jest.fn()
+    const { getByTestId } = render(<AddressForm onSubmit={onSubmit} loading={false} />)
+    fireEvent.press(getByTestId('state-chip-NJ'))
+    fireEvent.changeText(getByTestId('input-street'), '123 Main St')
+    fireEvent.changeText(getByTestId('input-city'), 'Newark')
+    fireEvent.press(getByTestId('submit-button'))
+    expect(onSubmit).toHaveBeenCalledWith('123 Main St', 'Newark', 'NJ')
   })
 
   it('calls onSubmit with NJ when NJ chip is selected', () => {
     const onSubmit = jest.fn()
     const { getByTestId } = render(<AddressForm onSubmit={onSubmit} loading={false} />)
+    fireEvent.press(getByTestId('state-chip-NJ'))       // switch first — clears city
     fireEvent.changeText(getByTestId('input-street'), '123 Main St')
     fireEvent.changeText(getByTestId('input-city'), 'Newark')
-    fireEvent.press(getByTestId('state-chip-NJ'))
     fireEvent.press(getByTestId('submit-button'))
     expect(onSubmit).toHaveBeenCalledWith('123 Main St', 'Newark', 'NJ')
   })

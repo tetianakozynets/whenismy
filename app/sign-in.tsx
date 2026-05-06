@@ -4,8 +4,10 @@ import {
   ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView,
 } from 'react-native'
 import { LinearGradient } from 'expo-linear-gradient'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { router } from 'expo-router'
 import { signUp, signIn } from '../src/lib/auth'
+import { WimLogo } from '../src/components/WimLogo'
 import { colors, spacing, radius } from '../src/constants/theme'
 import { scheduleStore } from '../src/lib/schedule-store'
 import { saveAddress, savePickupEvents } from '../src/lib/user-api'
@@ -18,6 +20,7 @@ const PILLS = [
 ]
 
 export default function SignInScreen() {
+  const insets = useSafeAreaInsets()
   const [mode, setMode] = useState<'signin' | 'signup'>('signup')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -31,7 +34,7 @@ export default function SignInScreen() {
     const e = email.trim()
     const p = password.trim()
     if (!e || !p) { setError('Please enter email and password.'); return }
-    if (p.length < 12) { setError('Password must be at least 12 characters.'); return }
+    if (p.length < 8) { setError('Password must be at least 8 characters.'); return }
 
     setLoading(true)
     try {
@@ -68,13 +71,12 @@ export default function SignInScreen() {
         {/* Hero */}
         <LinearGradient
           colors={['#0d0d1a', '#1a1a2e']}
-          style={styles.hero}
+          style={[styles.hero, { paddingTop: insets.top + spacing.xl }]}
         >
-          <Pressable onPress={() => router.back()} style={styles.backRow}>
+          <Pressable onPress={() => router.back()} style={[styles.backRow, { top: insets.top + spacing.sm }]}>
             <Text style={styles.backLink}>← Back</Text>
           </Pressable>
-          <Text style={styles.heroTitle}>WIM</Text>
-          <Text style={styles.heroSub}>When Is My</Text>
+          <WimLogo />
           <Text style={styles.heroTagline}>Never miss garbage day again.</Text>
           <View style={styles.pills}>
             {PILLS.map(p => (
@@ -109,7 +111,7 @@ export default function SignInScreen() {
           />
           <TextInput
             style={styles.input}
-            placeholder="Password (min 12 characters)"
+            placeholder="Password (min 8 characters)"
             placeholderTextColor={colors.textSecondary}
             value={password}
             onChangeText={setPassword}
@@ -157,17 +159,13 @@ const styles = StyleSheet.create({
   // Hero
   hero: {
     padding: spacing.lg,
-    paddingTop: 60,
     paddingBottom: spacing.xl,
-    gap: spacing.sm,
+    gap: spacing.md,
     minHeight: 280,
-    justifyContent: 'center',
   },
-  backRow: { position: 'absolute', top: spacing.lg, left: spacing.lg },
+  backRow: { position: 'absolute', left: spacing.lg },
   backLink: { color: colors.primary, fontSize: 15 },
-  heroTitle: { fontSize: 48, fontWeight: '900', color: colors.primary, letterSpacing: 2 },
-  heroSub: { fontSize: 12, color: colors.textSecondary, textTransform: 'uppercase', letterSpacing: 3 },
-  heroTagline: { fontSize: 16, color: colors.text, fontWeight: '500', marginTop: spacing.sm },
+  heroTagline: { fontSize: 16, color: colors.text, fontWeight: '500' },
   pills: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginTop: spacing.sm },
   pill: {
     backgroundColor: colors.card,

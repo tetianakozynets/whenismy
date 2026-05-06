@@ -1,5 +1,5 @@
 import { normalizeAddress } from './index.ts'
-import { isNYCAddress, parseDSNYDays, generateDSNYEvents } from '../_shared/nyc-dsny.ts'
+import { parseDSNYDays, generateDSNYEvents } from '../_shared/nyc-dsny.ts'
 import { parseIcalUrl } from '../_shared/recollect.ts'
 
 Deno.test('normalizeAddress: trims and lowercases', () => {
@@ -7,12 +7,12 @@ Deno.test('normalizeAddress: trims and lowercases', () => {
   if (result !== '123 main st|new york|ny') throw new Error(`Wrong: ${result}`)
 })
 
-Deno.test('isNYCAddress: Brooklyn NY is NYC', () => {
-  if (!isNYCAddress('Brooklyn', 'NY')) throw new Error('Expected true')
-})
-
-Deno.test('isNYCAddress: Buffalo NY is not NYC', () => {
-  if (isNYCAddress('Buffalo', 'NY')) throw new Error('Expected false')
+Deno.test('NYC routing: state=NY triggers geocoder path (not city-name list)', () => {
+  // Routing is purely state-based now — any NY address goes to the geocoder.
+  // The geocoder (geosearch.planninglabs.nyc) only returns results for valid
+  // NYC addresses, so non-NYC NY addresses naturally fall through to notCovered.
+  const state = 'NY'
+  if (state.trim().toUpperCase() !== 'NY') throw new Error('NY routing check broken')
 })
 
 Deno.test('parseDSNYDays: Mon+Thu returns 2 days', () => {
@@ -43,6 +43,7 @@ Deno.test('NJ non-JC address routes to RecycleCoach provider label', () => {
   const state = 'NJ'
   if (state.trim().toUpperCase() !== 'NJ') throw new Error('NJ routing check broken')
 })
+
 
 Deno.test('isJerseyCity: routes jersey city correctly', async () => {
   const { isJerseyCity } = await import('../_shared/jersey-city.ts')

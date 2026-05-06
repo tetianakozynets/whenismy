@@ -4,6 +4,7 @@ import {
 } from 'react-native'
 import { router, Redirect } from 'expo-router'
 import { AddressForm } from '../src/components/AddressForm'
+import { WimLogo } from '../src/components/WimLogo'
 import { AddressMatchPicker } from '../src/components/AddressMatchPicker'
 import { SplitLayout } from '../src/components/SplitLayout'
 import { SchedulePanel } from '../src/components/SchedulePanel'
@@ -85,7 +86,7 @@ export default function HomeScreen() {
 
   const formContent = (
     <>
-      <Text style={styles.title}>WIM</Text>
+      <WimLogo titleSize={40} />
       <Text style={styles.subtitle}>
         Find your garbage and recycling pickup days
       </Text>

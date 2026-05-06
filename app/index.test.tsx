@@ -82,10 +82,9 @@ it('does not navigate on success when in split layout (wide screen)', async () =
   useSplitLayout.mockReturnValue(true)
   ;(api.lookupSchedule as jest.Mock).mockResolvedValueOnce(mockResult)
   const { getByTestId } = render(<HomeScreen />)
+  fireEvent.press(getByTestId('state-chip-NJ'))         // switch first — clears city
   fireEvent.changeText(getByTestId('input-street'), '123 Main St')
   fireEvent.changeText(getByTestId('input-city'), 'Springfield')
-  // NY is pre-selected; press NJ chip to test state chip interaction
-  fireEvent.press(getByTestId('state-chip-NJ'))
   fireEvent.press(getByTestId('submit-button'))
 
   await waitFor(() => {

@@ -2,7 +2,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { checkRateLimit } from '../_shared/rate-limit.ts'
 import { timezoneFromLatLng } from '../_shared/tz.ts'
 import {
-  isNYCAddress, geocodeNYC, lookupDSNYZone, generateDSNYEvents,
+  geocodeNYC, lookupDSNYZone, generateDSNYEvents,
 } from '../_shared/nyc-dsny.ts'
 import {
   parseIcalUrl, getEventsForPlace, getEvents, normalizeEventType,
@@ -111,12 +111,18 @@ export async function handler(req: Request): Promise<Response> {
   }
 
   // ── NYC DSNY ───────────────────────────────────────────────────────────────
-  if (isNYCAddress(city!, state!)) {
+  // Try geocoding any NY address — the NYC geocoder only returns results for
+  // valid NYC addresses, so non-NYC NY addresses fall through to notCovered.
+  if (state!.trim().toUpperCase() === 'NY') {
     const coords = await geocodeNYC(street!, city!, state!)
-    if (!coords) return json({ error: 'Address not found', notFound: true }, 404)
+    if (!coords) {
+      const exists = await addressExistsNominatim(street!, city!, state!)
+      if (!exists) return json({ error: 'Address not found', notFound: true }, 404)
+      return json({ error: 'Address not covered', notCovered: true }, 404)
+    }
 
     const zone = await lookupDSNYZone(coords.lat, coords.lng)
-    if (!zone) return json({ error: 'Address not in NYC schedule zones', notFound: true }, 404)
+    if (!zone) return json({ error: 'Address not found', notFound: true }, 404)
 
     const timezone = timezoneFromLatLng(coords.lat, coords.lng)
     const supportedTypes = ['garbage', 'recycling']

@@ -9,13 +9,24 @@ interface Props {
   loading: boolean
 }
 
-const SUPPORTED_STATES = ['NY', 'NJ'] as const
+const SUPPORTED_STATES = [
+  { label: 'NYC', value: 'NY' },
+  { label: 'NJ',  value: 'NJ' },
+]
+
+const NYC_CITY = 'New York City'
 
 export function AddressForm({ onSubmit, loading }: Props) {
   const [street, setStreet] = useState('')
-  const [city, setCity] = useState('')
+  const [city, setCity] = useState(NYC_CITY)
   const [state, setState] = useState<string>('NY')
   const [error, setError] = useState<string | null>(null)
+  const isNYC = state === 'NY'
+
+  function handleStateChange(value: string) {
+    setState(value)
+    setCity(value === 'NY' ? NYC_CITY : '')
+  }
 
   function handleSubmit() {
     const s = street.trim()
@@ -41,27 +52,28 @@ export function AddressForm({ onSubmit, loading }: Props) {
         returnKeyType="next"
       />
       <TextInput
-        style={styles.input}
+        style={[styles.input, isNYC && styles.inputLocked]}
         placeholder="City"
         placeholderTextColor={colors.textSecondary}
         value={city}
-        onChangeText={setCity}
+        onChangeText={isNYC ? undefined : setCity}
+        editable={!isNYC}
         testID="input-city"
         autoCapitalize="words"
         returnKeyType="done"
         onSubmitEditing={handleSubmit}
       />
       <View style={styles.stateRow}>
-        {SUPPORTED_STATES.map(s => (
+        {SUPPORTED_STATES.map(({ label, value }) => (
           <Pressable
-            key={s}
-            style={[styles.stateChip, state === s && styles.stateChipActive]}
-            onPress={() => setState(s)}
+            key={value}
+            style={[styles.stateChip, state === value && styles.stateChipActive]}
+            onPress={() => handleStateChange(value)}
             accessibilityRole="button"
-            testID={`state-chip-${s}`}
+            testID={`state-chip-${value}`}
           >
-            <Text style={[styles.stateChipText, state === s && styles.stateChipTextActive]}>
-              {s}
+            <Text style={[styles.stateChipText, state === value && styles.stateChipTextActive]}>
+              {label}
             </Text>
           </Pressable>
         ))}
@@ -128,6 +140,7 @@ const styles = StyleSheet.create({
     fontStyle: 'italic',
     flexShrink: 1,
   },
+  inputLocked: { color: colors.textSecondary, opacity: 0.7 },
   error: { color: colors.error, fontSize: 14 },
   button: {
     backgroundColor: colors.primary,
