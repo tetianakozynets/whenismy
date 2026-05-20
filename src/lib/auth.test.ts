@@ -19,7 +19,11 @@ beforeEach(() => jest.clearAllMocks())
 it('signUp calls supabase.auth.signUp with email and password', async () => {
   mockAuth.signUp.mockResolvedValueOnce({ data: { user: { id: 'u1' } }, error: null } as any)
   const result = await signUp('a@b.com', 'password123456')
-  expect(mockAuth.signUp).toHaveBeenCalledWith({ email: 'a@b.com', password: 'password123456' })
+  expect(mockAuth.signUp).toHaveBeenCalledWith({
+    email: 'a@b.com',
+    password: 'password123456',
+    options: { emailRedirectTo: 'whenismy://' },
+  })
   expect(result.error).toBeNull()
 })
 

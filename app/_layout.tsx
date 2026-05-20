@@ -11,6 +11,7 @@ export default function RootLayout() {
         <Stack.Screen name="address-not-found" />
         <Stack.Screen name="calendar-url" />
         <Stack.Screen name="sign-in" />
+        <Stack.Screen name="check-email" />
         <Stack.Screen name="notifications" />
         <Stack.Screen name="manual-entry" />
       </Stack>

@@ -72,7 +72,7 @@ it('shows not-found error inline when address is not found', async () => {
   fireEvent.changeText(getByTestId('input-city'), 'Nowhere')
   fireEvent.press(getByTestId('submit-button'))
 
-  await findByText(/couldn't find that address/i)
+  await findByText(/please enter a valid address/i)
   const { router } = require('expo-router')
   expect(router.push).not.toHaveBeenCalledWith('/address-not-found')
 })

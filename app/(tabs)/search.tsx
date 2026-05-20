@@ -21,6 +21,7 @@ export default function SearchTab() {
   const [result, setResult] = useState<LookupResponse | null>(null)
   const [address, setAddress] = useState<string | undefined>()
   const [notFound, setNotFound] = useState(false)
+  const [errorMsg, setErrorMsg] = useState<string | null>(null)
   const [matches, setMatches] = useState<PlaceMatch[] | null>(null)
   const [loading, setLoading] = useState(false)
   const [resetKey, setResetKey] = useState(0)
@@ -28,11 +29,13 @@ export default function SearchTab() {
   async function handleLookup(street: string, city: string, state: string) {
     setLoading(true)
     setNotFound(false)
+    setErrorMsg(null)
     setResult(null)
     const res = await lookupSchedule(street, city, state)
     setLoading(false)
     if (isError(res)) {
       if (res.notFound) setNotFound(true)
+      else if (res.serviceUnavailable) setErrorMsg('NJ schedule service is temporarily unavailable. Please try again later.')
       else if (res.notCovered) router.push('/address-not-found')
       return
     }
@@ -59,19 +62,23 @@ export default function SearchTab() {
     setResult(null)
     setAddress(undefined)
     setNotFound(false)
+    setErrorMsg(null)
     setMatches(null)
     setResetKey(k => k + 1)
   }
 
   const formContent = (
     <>
-      <WimLogo titleSize={36} />
+      <WimLogo titleSize={36} align="center" />
       <Text style={styles.subtitle}>Search any address</Text>
       <AddressForm key={resetKey} onSubmit={handleLookup} loading={loading} />
       {notFound && (
         <Text style={styles.notFoundText}>
           We couldn't find that address. Please double-check and try again.
         </Text>
+      )}
+      {errorMsg && (
+        <Text style={styles.errorText}>{errorMsg}</Text>
       )}
     </>
   )
@@ -87,6 +94,7 @@ export default function SearchTab() {
               onReset={handleReset}
               address={address}
               notFound={notFound}
+              errorMsg={errorMsg}
             />
           }
         />
@@ -129,12 +137,16 @@ export default function SearchTab() {
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.background },
-  container: { flex: 1, padding: spacing.lg, gap: spacing.md, justifyContent: 'center' },
-  formPadding: { padding: spacing.lg, gap: spacing.md },
+  container: { flex: 1, padding: spacing.lg, gap: spacing.md, justifyContent: 'center', backgroundColor: colors.background },
+  formPadding: { padding: spacing.lg, gap: spacing.md, backgroundColor: colors.background },
   title: { fontSize: 32, fontWeight: '800', color: colors.text, textAlign: 'center' },
   subtitle: { fontSize: 15, color: colors.textSecondary, textAlign: 'center' },
   notFoundText: {
     color: colors.error, fontSize: 14, textAlign: 'center',
+    paddingHorizontal: spacing.md,
+  },
+  errorText: {
+    color: colors.textSecondary, fontSize: 14, textAlign: 'center',
     paddingHorizontal: spacing.md,
   },
 })

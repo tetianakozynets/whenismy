@@ -82,7 +82,7 @@ export function ScheduleContent({ result, onBack, address, showBack = true, save
   const listEvents = showAll ? remainingEvents : thisWeek
 
   return (
-    <ScrollView contentContainerStyle={styles.scroll}>
+    <ScrollView style={styles.scrollView} contentContainerStyle={styles.scroll}>
       <View style={styles.topBar}>
         {showBack && !isWide && (
           <Pressable onPress={onBack} accessibilityRole="button">
@@ -170,8 +170,9 @@ export function ScheduleContent({ result, onBack, address, showBack = true, save
 }
 
 const styles = StyleSheet.create({
-  empty: { flex: 1, padding: spacing.lg, gap: spacing.md, justifyContent: 'center' },
+  empty: { flex: 1, padding: spacing.lg, gap: spacing.md, justifyContent: 'center', backgroundColor: colors.background },
   emptyText: { fontSize: 16, color: colors.textSecondary },
+  scrollView: { flex: 1, backgroundColor: colors.background },
   scroll: { padding: spacing.lg, gap: spacing.lg },
   topBar: {
     flexDirection: 'row',

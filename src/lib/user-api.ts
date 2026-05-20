@@ -26,6 +26,9 @@ export async function saveAddress(
 }
 
 export async function savePickupEvents(userId: string, events: PickupEvent[]) {
+  // Delete all existing events before inserting new ones so old-address
+  // events don't linger and trigger wrong push notifications.
+  await supabase.from('pickup_events').delete().eq('user_id', userId)
   const now = new Date().toISOString()
   return supabase.from('pickup_events').insert(
     events.map(e => ({

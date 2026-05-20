@@ -7,13 +7,8 @@ import { router } from 'expo-router'
 import { useAuth } from '../src/lib/auth-context'
 import { getPreferences, updateNotificationPreferences } from '../src/lib/user-api'
 import { NotificationToggle } from '../src/components/NotificationToggle'
+import { TimePicker } from '../src/components/TimePicker'
 import { colors, spacing, radius } from '../src/constants/theme'
-
-const TIME_OPTIONS = ['18:00', '19:00', '20:00', '21:00', '22:00']
-const TIME_LABELS: Record<string, string> = {
-  '18:00': '6:00 PM', '19:00': '7:00 PM', '20:00': '8:00 PM',
-  '21:00': '9:00 PM', '22:00': '10:00 PM',
-}
 
 export default function NotificationsScreen() {
   const { user } = useAuth()
@@ -61,13 +56,17 @@ export default function NotificationsScreen() {
           <Text style={styles.backLink}>← Back</Text>
         </Pressable>
         <Text style={styles.title}>Reminders</Text>
-        <Text style={styles.subtitle}>
-          You'll get a notification the night before each pickup.
-        </Text>
 
         {loading
           ? <ActivityIndicator testID="activity-indicator" color={colors.primary} style={{ marginTop: spacing.xl }} />
           : <>
+              <View style={styles.infoBox}>
+                <Text style={styles.infoText}>
+                  🔔 You'll receive a push notification the evening before each pickup day.
+                </Text>
+              </View>
+
+              <Text style={styles.sectionLabel}>What to remind me about</Text>
               {(supportedTypes.length === 0 || supportedTypes.includes('garbage')) && (
                 <NotificationToggle label="Garbage" icon="🗑️" value={garbage} onValueChange={setGarbage} />
               )}
@@ -78,20 +77,8 @@ export default function NotificationsScreen() {
                 <NotificationToggle label="Yard Waste" icon="🍂" value={yardWaste} onValueChange={setYardWaste} />
               )}
 
-              <Text style={styles.sectionLabel}>Reminder time</Text>
-              <View style={styles.timeRow}>
-                {TIME_OPTIONS.map(t => (
-                  <Pressable
-                    key={t}
-                    style={[styles.timeChip, time === t && styles.timeChipSelected]}
-                    onPress={() => setTime(t)}
-                  >
-                    <Text style={[styles.timeChipText, time === t && styles.timeChipTextSelected]}>
-                      {TIME_LABELS[t]}
-                    </Text>
-                  </Pressable>
-                ))}
-              </View>
+              <Text style={styles.sectionLabel}>Remind me the evening before at</Text>
+              <TimePicker value={time} onChange={setTime} />
 
               <Pressable
                 style={[styles.button, saving && styles.buttonDisabled]}
@@ -113,23 +100,28 @@ const styles = StyleSheet.create({
   backRow: { paddingBottom: spacing.sm },
   backLink: { color: colors.primary, fontSize: 15 },
   title: { fontSize: 24, fontWeight: '700', color: colors.text },
-  subtitle: { fontSize: 14, color: colors.textSecondary },
-  sectionLabel: {
-    fontSize: 11, fontWeight: '600', color: colors.textSecondary,
-    textTransform: 'uppercase', letterSpacing: 0.8, marginTop: spacing.md,
-  },
-  timeRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
-  timeChip: {
-    paddingHorizontal: spacing.md, paddingVertical: spacing.sm,
-    borderRadius: radius.sm, borderWidth: 1, borderColor: colors.border,
+  infoBox: {
     backgroundColor: colors.card,
+    borderRadius: radius.sm,
+    borderLeftWidth: 3,
+    borderLeftColor: colors.primary,
+    padding: spacing.md,
   },
-  timeChipSelected: { backgroundColor: colors.primary, borderColor: colors.primary },
-  timeChipText: { fontSize: 14, color: colors.textSecondary },
-  timeChipTextSelected: { color: '#fff', fontWeight: '600' },
+  infoText: { fontSize: 14, color: colors.textSecondary, lineHeight: 20 },
+  sectionLabel: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: colors.textSecondary,
+    textTransform: 'uppercase',
+    letterSpacing: 0.8,
+    marginTop: spacing.sm,
+  },
   button: {
-    backgroundColor: colors.primary, padding: spacing.md,
-    borderRadius: radius.sm, alignItems: 'center', marginTop: spacing.md,
+    backgroundColor: colors.primary,
+    padding: spacing.md,
+    borderRadius: radius.sm,
+    alignItems: 'center',
+    marginTop: spacing.md,
   },
   buttonDisabled: { opacity: 0.6 },
   buttonText: { color: '#fff', fontSize: 16, fontWeight: '600' },

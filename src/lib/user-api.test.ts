@@ -41,11 +41,16 @@ it('saveAddress upserts to user_preferences', async () => {
   )
 })
 
-it('savePickupEvents inserts events with user_id and source', async () => {
+it('savePickupEvents deletes existing then inserts new events', async () => {
+  const eq = jest.fn().mockResolvedValueOnce({ error: null })
+  const deleteFn = jest.fn().mockReturnValueOnce({ eq })
   const insert = jest.fn().mockResolvedValueOnce({ error: null })
-  mockFrom.mockReturnValueOnce({ insert })
+  mockFrom
+    .mockReturnValueOnce({ delete: deleteFn })
+    .mockReturnValueOnce({ insert })
   await savePickupEvents('u1', events)
-  expect(mockFrom).toHaveBeenCalledWith('pickup_events')
+  expect(deleteFn).toHaveBeenCalled()
+  expect(eq).toHaveBeenCalledWith('user_id', 'u1')
   expect(insert).toHaveBeenCalledWith(
     events.map(e => ({
       user_id: 'u1',

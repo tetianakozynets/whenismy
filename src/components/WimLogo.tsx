@@ -1,16 +1,26 @@
-import React from 'react'
+import React, { useState } from 'react'
 import { View, Text, StyleSheet } from 'react-native'
 import { colors } from '../constants/theme'
 
 interface Props {
   titleSize?: number
+  align?: 'left' | 'center'
 }
 
-export function WimLogo({ titleSize = 48 }: Props) {
+export function WimLogo({ titleSize = 48, align = 'left' }: Props) {
+  const [wimWidth, setWimWidth] = useState(0)
+
   return (
-    <View style={styles.container}>
-      <Text style={[styles.title, { fontSize: titleSize }]}>WIM</Text>
-      <Text style={styles.subtitle}>When Is My</Text>
+    <View style={[styles.container, align === 'center' && styles.containerCentered]}>
+      <Text
+        style={[styles.title, { fontSize: titleSize }]}
+        onLayout={e => setWimWidth(e.nativeEvent.layout.width)}
+      >
+        WIM
+      </Text>
+      <Text style={[styles.subtitle, wimWidth > 0 && { width: wimWidth, marginLeft: 0 }]}>
+        When Is My
+      </Text>
     </View>
   )
 }
@@ -19,18 +29,20 @@ const styles = StyleSheet.create({
   container: {
     alignSelf: 'flex-start',
   },
+  containerCentered: {
+    alignSelf: 'center',
+  },
   title: {
     fontWeight: '900',
     color: colors.primary,
     letterSpacing: 2,
-    lineHeight: undefined,
   },
   subtitle: {
     fontSize: 12,
     color: colors.textSecondary,
     textTransform: 'uppercase',
     letterSpacing: 3,
-    marginLeft: 6,    // nudge right to sit under the middle of WIM
-    marginTop: -4,    // pull up slightly, tightening the gap with WIM
+    marginTop: -4,
+    textAlign: 'center',
   },
 })

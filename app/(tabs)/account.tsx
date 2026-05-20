@@ -10,6 +10,7 @@ import { signOut } from '../../src/lib/auth'
 import { getPreferences, deleteAccount } from '../../src/lib/user-api'
 import { UserPreferences } from '../../src/lib/types'
 import { colors, spacing, radius } from '../../src/constants/theme'
+import { toTitleCase } from '../../src/lib/formatting'
 
 export default function AccountTab() {
   const { user } = useAuth()
@@ -62,8 +63,8 @@ export default function AccountTab() {
   }
 
   function addressSummary(): string {
-    if (!prefs?.city) return 'None saved'
-    return `${prefs.city}, ${prefs.state}`
+    if (!prefs?.street) return 'None saved'
+    return `${toTitleCase(prefs.street)}, ${toTitleCase(prefs.city)}, ${prefs.state.toUpperCase()}`
   }
 
   if (!user) return null
@@ -112,8 +113,8 @@ export default function AccountTab() {
           <Text style={styles.rowText}>Sign out</Text>
         </Pressable>
 
-        <Pressable style={styles.row} onPress={handleDeleteAccount} accessibilityRole="button">
-          <Text style={[styles.rowText, styles.danger]}>Delete account</Text>
+        <Pressable style={styles.deleteRow} onPress={handleDeleteAccount} accessibilityRole="button">
+          <Text style={styles.deleteText}>Delete account</Text>
         </Pressable>
       </ScrollView>
     </SafeAreaView>
@@ -153,5 +154,9 @@ const styles = StyleSheet.create({
     borderBottomColor: colors.border,
   },
   rowText: { fontSize: 16, color: colors.text },
-  danger: { color: colors.error },
+  deleteRow: {
+    paddingVertical: spacing.sm,
+    alignSelf: 'flex-start',
+  },
+  deleteText: { fontSize: 13, color: colors.error },
 })

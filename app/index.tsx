@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
 import {
-  View, Text, SafeAreaView, StyleSheet, Alert,
+  View, Text, SafeAreaView, StyleSheet, Alert, Pressable,
 } from 'react-native'
 import { router, Redirect } from 'expo-router'
 import { AddressForm } from '../src/components/AddressForm'
@@ -22,6 +22,7 @@ export default function HomeScreen() {
   const [result, setResult] = useState<LookupResponse | null>(null)
   const [address, setAddress] = useState<string | undefined>(undefined)
   const [notFound, setNotFound] = useState(false)
+  const [serviceUnavailable, setServiceUnavailable] = useState(false)
   const [resetKey, setResetKey] = useState(0)
   const isSplit = useSplitLayout()
   const { user } = useAuth()
@@ -30,6 +31,7 @@ export default function HomeScreen() {
   async function handleLookup(street: string, city: string, state: string) {
     setLoading(true)
     setNotFound(false)
+    setServiceUnavailable(false)
     try {
       const res = await lookupSchedule(street, city, state)
       if (isError(res)) {
@@ -38,6 +40,9 @@ export default function HomeScreen() {
           setResult(null)
         } else if (res.notCovered) {
           router.push('/address-not-found')
+        } else if (res.serviceUnavailable) {
+          setServiceUnavailable(true)
+          setResult(null)
         } else {
           Alert.alert('Error', res.error)
         }
@@ -80,13 +85,14 @@ export default function HomeScreen() {
     setResult(null)
     setAddress(undefined)
     setNotFound(false)
+    setServiceUnavailable(false)
     setMatches(null)
     setResetKey(k => k + 1)
   }
 
   const formContent = (
     <>
-      <WimLogo titleSize={40} />
+      <WimLogo titleSize={40} align="center" />
       <Text style={styles.subtitle}>
         Find your garbage and recycling pickup days
       </Text>
@@ -94,7 +100,14 @@ export default function HomeScreen() {
       {notFound && !isSplit && (
         <View style={styles.notFoundBox}>
           <Text style={styles.notFoundText}>
-            We couldn't find that address. Please double-check the spelling and try a valid US address.
+            Please enter a valid address.
+          </Text>
+        </View>
+      )}
+      {serviceUnavailable && !isSplit && (
+        <View style={styles.notFoundBox}>
+          <Text style={styles.notFoundText}>
+            Schedule data is temporarily unavailable for this address. Please try again later.
           </Text>
         </View>
       )}
@@ -106,7 +119,7 @@ export default function HomeScreen() {
       <>
         <SplitLayout
           form={<View style={styles.formPadding}>{formContent}</View>}
-          panel={<SchedulePanel result={result} onReset={handleReset} address={address} notFound={notFound} />}
+          panel={<SchedulePanel result={result} onReset={handleReset} address={address} notFound={notFound} serviceUnavailable={serviceUnavailable} />}
         />
         {matches && (
           <AddressMatchPicker
@@ -123,6 +136,16 @@ export default function HomeScreen() {
     <SafeAreaView style={styles.safe}>
       <View style={styles.container}>
         {formContent}
+        <Pressable
+          style={styles.signInRow}
+          onPress={() => router.push({ pathname: '/sign-in', params: { mode: 'signin' } })}
+          accessibilityRole="button"
+          testID="btn-sign-in"
+        >
+          <Text style={styles.signInText}>
+            Have an account? <Text style={styles.signInLink}>Sign in →</Text>
+          </Text>
+        </Pressable>
       </View>
       {matches && (
         <AddressMatchPicker
@@ -171,5 +194,17 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: colors.textSecondary,
     lineHeight: 20,
+  },
+  signInRow: {
+    alignItems: 'center',
+    paddingVertical: spacing.sm,
+  },
+  signInText: {
+    fontSize: 14,
+    color: colors.textSecondary,
+  },
+  signInLink: {
+    color: colors.primary,
+    fontWeight: '600',
   },
 })

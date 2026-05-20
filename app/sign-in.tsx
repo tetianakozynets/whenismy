@@ -5,7 +5,7 @@ import {
 } from 'react-native'
 import { LinearGradient } from 'expo-linear-gradient'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
-import { router } from 'expo-router'
+import { router, useLocalSearchParams } from 'expo-router'
 import { signUp, signIn } from '../src/lib/auth'
 import { WimLogo } from '../src/components/WimLogo'
 import { colors, spacing, radius } from '../src/constants/theme'
@@ -21,7 +21,10 @@ const PILLS = [
 
 export default function SignInScreen() {
   const insets = useSafeAreaInsets()
-  const [mode, setMode] = useState<'signin' | 'signup'>('signup')
+  const { mode: initialMode } = useLocalSearchParams<{ mode?: string }>()
+  const [mode, setMode] = useState<'signin' | 'signup'>(
+    initialMode === 'signin' ? 'signin' : 'signup'
+  )
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
@@ -39,10 +42,24 @@ export default function SignInScreen() {
     setLoading(true)
     try {
       if (mode === 'signup') {
-        const { error: err } = await signUp(e, p)
+        const { data, error: err } = await signUp(e, p)
         if (err) { setError(err.message); return }
-        setInfo('Check your email to confirm your account, then sign in.')
-        setMode('signin')
+        // If Supabase returns a session immediately (email confirmation disabled),
+        // save any pending address and go to the app. Otherwise show a prompt.
+        if (data.session) {
+          const userId = data.user?.id
+          if (userId) {
+            const stored = scheduleStore.get()
+            if (stored) {
+              await saveAddress(userId, stored.street, stored.city, stored.state, stored.result.place)
+              await savePickupEvents(userId, stored.result.events)
+            }
+            registerPushToken(userId)
+          }
+          router.replace('/(tabs)/schedule')
+        } else {
+          router.replace({ pathname: '/check-email', params: { email: e } })
+        }
       } else {
         const { data, error: err } = await signIn(e, p)
         if (err) { setError(err.message); return }
@@ -111,7 +128,7 @@ export default function SignInScreen() {
           />
           <TextInput
             style={styles.input}
-            placeholder="Password (min 8 characters)"
+            placeholder={mode === 'signup' ? 'Password (min 8 characters)' : 'Password'}
             placeholderTextColor={colors.textSecondary}
             value={password}
             onChangeText={setPassword}

@@ -25,14 +25,24 @@ jest.mock('../src/lib/user-api', () => ({
   updateNotificationPreferences: jest.fn().mockResolvedValue({}),
 }))
 
-// Mock NotificationToggle to render a simple, testable element that mirrors
-// the real component's toggle behaviour without requiring a native Switch.
 jest.mock('../src/components/NotificationToggle', () => ({
   NotificationToggle: ({ label, value, onValueChange }: any) => {
     const { Text, Pressable } = require('react-native')
     return (
       <Pressable testID={`toggle-${label.toLowerCase()}`} onPress={() => onValueChange(!value)}>
         <Text>{label}: {value ? 'on' : 'off'}</Text>
+      </Pressable>
+    )
+  },
+}))
+
+// Mock TimePicker so tests control time changes without arrow-button interaction.
+jest.mock('../src/components/TimePicker', () => ({
+  TimePicker: ({ value, onChange }: any) => {
+    const { Text, Pressable } = require('react-native')
+    return (
+      <Pressable testID="time-picker" onPress={() => onChange('22:00')}>
+        <Text testID="time-value">{value}</Text>
       </Pressable>
     )
   },
@@ -148,40 +158,34 @@ describe('NotificationsScreen', () => {
     expect(await findByText('Recycling: on')).toBeTruthy()
   })
 
-  // 7. Time selection is initialised from prefs.notification_time
-  it('marks the time chip from prefs.notification_time as selected', async () => {
+  // 7. TimePicker receives the time value from prefs
+  it('passes prefs.notification_time to TimePicker', async () => {
     ;(getPreferences as jest.Mock).mockResolvedValue(
       makePrefs({ notification_time: '19:00' })
     )
 
-    const { findByText } = render(<NotificationsScreen />)
+    const { findByTestId } = render(<NotificationsScreen />)
 
-    // The save button appears once loading is done; then check the time label.
-    await findByText('Save')
-    // 7:00 PM corresponds to 19:00.
-    expect(await findByText('7:00 PM')).toBeTruthy()
+    const picker = await findByTestId('time-value')
+    expect(picker.props.children).toBe('19:00')
   })
 
-  // 8. Pressing a time chip changes the selected time
-  it('changes the selected time when a different chip is pressed', async () => {
+  // 8. Interacting with TimePicker updates the time sent on Save
+  it('uses the new time from TimePicker when Save is pressed', async () => {
     ;(getPreferences as jest.Mock).mockResolvedValue(
       makePrefs({ notification_time: '20:00' })
     )
 
-    const { findByText, getByText } = render(<NotificationsScreen />)
-
-    // Wait for the UI to finish loading.
+    const { findByText, getByTestId } = render(<NotificationsScreen />)
     await findByText('Save')
 
-    // Press the 10:00 PM chip (corresponds to 22:00).
+    // Simulate TimePicker calling onChange('22:00')
     await act(async () => {
-      fireEvent.press(getByText('10:00 PM'))
+      fireEvent.press(getByTestId('time-picker'))
     })
 
-    // 22:00 chip should now be selected; verify by pressing Save and
-    // checking the argument passed to updateNotificationPreferences.
     await act(async () => {
-      fireEvent.press(getByText('Save'))
+      fireEvent.press(await findByText('Save'))
     })
 
     await waitFor(() => {

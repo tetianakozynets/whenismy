@@ -12,6 +12,7 @@ import { registerPushToken } from '../src/lib/push-notifications'
 
 jest.mock('expo-router', () => ({
   router: { replace: jest.fn(), back: jest.fn(), push: jest.fn() },
+  useLocalSearchParams: () => ({}),   // default: no mode param → signup
 }))
 
 jest.mock('expo-linear-gradient', () => ({
@@ -106,7 +107,7 @@ describe('SignInScreen', () => {
 
   // 5. Calls signUp with email + password on submit (signup mode)
   it('calls signUp with trimmed email and password on submit in signup mode', async () => {
-    ;(authLib.signUp as jest.Mock).mockResolvedValueOnce({ error: null })
+    ;(authLib.signUp as jest.Mock).mockResolvedValueOnce({ data: { session: null, user: null }, error: null })
     const utils = renderScreen()
     fillForm(utils, '  user@example.com  ', 'supersecret1234')
     fireEvent.press(utils.getByTestId('submit-button'))
@@ -115,21 +116,34 @@ describe('SignInScreen', () => {
     })
   })
 
-  // 6. Shows info message after successful signup
-  it('shows info message and switches to sign-in mode after successful signup', async () => {
-    ;(authLib.signUp as jest.Mock).mockResolvedValueOnce({ error: null })
+  // 6a. Signup with no session → navigates to /check-email (confirmation required)
+  it('navigates to /check-email when signUp returns no session (confirmation required)', async () => {
+    ;(authLib.signUp as jest.Mock).mockResolvedValueOnce({ data: { session: null, user: null }, error: null })
     const utils = renderScreen()
     fillForm(utils, 'user@example.com', 'supersecret1234')
     fireEvent.press(utils.getByTestId('submit-button'))
     await waitFor(() => {
-      expect(
-        utils.getByText('Check your email to confirm your account, then sign in.')
-      ).toBeTruthy()
+      const { router } = require('expo-router')
+      expect(router.replace).toHaveBeenCalledWith({
+        pathname: '/check-email',
+        params: { email: 'user@example.com' },
+      })
     })
-    // Should have switched to sign-in mode — "Create account" button is gone
-    expect(utils.queryByText('Create account')).toBeNull()
-    // And the toggle link now reads "sign up"
-    expect(utils.getByText("Don't have an account? Sign up")).toBeTruthy()
+  })
+
+  // 6b. Signup with session → signs in immediately (confirmation disabled)
+  it('navigates to /(tabs)/schedule when signUp returns a session immediately', async () => {
+    ;(authLib.signUp as jest.Mock).mockResolvedValueOnce({
+      data: { session: { access_token: 'tok' }, user: { id: 'u1' } },
+      error: null,
+    })
+    const utils = renderScreen()
+    fillForm(utils, 'user@example.com', 'supersecret1234')
+    fireEvent.press(utils.getByTestId('submit-button'))
+    await waitFor(() => {
+      const { router } = require('expo-router')
+      expect(router.replace).toHaveBeenCalledWith('/(tabs)/schedule')
+    })
   })
 
   // 7. Calls signIn on submit in sign-in mode

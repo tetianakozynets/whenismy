@@ -141,10 +141,10 @@ describe('AccountTab', () => {
     expect(getByText('None saved')).toBeTruthy()
   })
 
-  // 7. addressSummary shows 'City, STATE' when prefs exist
-  it('shows "City, STATE" when prefs contain a city', async () => {
+  // 7. addressSummary shows 'Street, City, STATE' when prefs exist
+  it('shows "Street, City, STATE" when prefs contain an address', async () => {
     const { getByText } = await renderLoaded(basePrefs)
-    expect(getByText('Springfield, NY')).toBeTruthy()
+    expect(getByText('123 Main St, Springfield, NY')).toBeTruthy()
   })
 
   // 8. Pressing "Reminders settings" tile navigates to /notifications

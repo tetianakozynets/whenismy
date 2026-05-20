@@ -9,20 +9,40 @@ interface Props {
   onReset: () => void
   address?: string
   notFound?: boolean
+  serviceUnavailable?: boolean
+  errorMsg?: string | null
 }
 
-export function SchedulePanel({ result, onReset, address, notFound }: Props) {
+export function SchedulePanel({ result, onReset, address, notFound, serviceUnavailable, errorMsg }: Props) {
   if (result) {
-    return <ScheduleContent result={result} onBack={onReset} address={address} />
+    return <ScheduleContent key={result.place.address_key} result={result} onBack={onReset} address={address} />
   }
 
   if (notFound) {
     return (
       <View style={styles.placeholder}>
-        <Text style={styles.notFoundTitle}>Address not found</Text>
         <Text style={styles.notFoundText}>
-          We couldn't find that address. Please double-check the spelling and try a valid US address.
+          Please enter a valid address.
         </Text>
+      </View>
+    )
+  }
+
+  if (serviceUnavailable) {
+    return (
+      <View style={styles.placeholder}>
+        <Text style={styles.notFoundTitle}>Temporarily unavailable</Text>
+        <Text style={styles.notFoundText}>
+          Schedule data for this address is temporarily unavailable. Please try again later.
+        </Text>
+      </View>
+    )
+  }
+
+  if (errorMsg) {
+    return (
+      <View style={styles.placeholder}>
+        <Text style={styles.notFoundText}>{errorMsg}</Text>
       </View>
     )
   }
