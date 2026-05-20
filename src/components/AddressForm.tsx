@@ -12,6 +12,7 @@ interface Props {
 const SUPPORTED_STATES = [
   { label: 'NYC', value: 'NY' },
   { label: 'NJ',  value: 'NJ' },
+  { label: 'OR',  value: 'OR' },
 ]
 
 const NYC_CITY = 'New York City'
