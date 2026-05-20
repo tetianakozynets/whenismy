@@ -42,13 +42,20 @@ async function geocodeForJC(
 }
 
 async function queryJCZoneName(apiUrl: string, lat: number, lng: number): Promise<string | null> {
-  const point = encodeURIComponent(`geom'POINT(${lng} ${lat})'`)
-  const url = `${apiUrl}?where=within_distance(geo_shape,${point},500m)&limit=1&select=name`
-  const res = await fetch(url)
-  if (!res.ok) return null
-  const data = await res.json().catch(() => null)
-  const name = data?.results?.[0]?.name
-  return typeof name === 'string' ? name : null
+  const point = `geom'POINT(${lng} ${lat})'`
+  // Use point-in-polygon first; fall back to 50m buffer for points that land
+  // on a polygon edge due to geocoder imprecision
+  for (const where of [
+    `intersects(geo_shape,${point})`,
+    `within_distance(geo_shape,${encodeURIComponent(point)},50m)`,
+  ]) {
+    const res = await fetch(`${apiUrl}?where=${encodeURIComponent(where)}&limit=1&select=name`)
+    if (!res.ok) return null
+    const data = await res.json().catch(() => null)
+    const name = data?.results?.[0]?.name
+    if (typeof name === 'string') return name
+  }
+  return null
 }
 
 const DOW_INDEX: Record<string, number> = {

@@ -17,16 +17,24 @@ export interface RCResult {
   zone_ids: string[]
 }
 
-const RC_SEARCH_BASE = 'https://api-city.recyclecoach.com'
+const RC_API_BASE = 'https://api-city.recyclecoach.com'
+const RC_US_APIGW  = 'https://us-web.apigw.recyclecoach.com'
 
-function apiBase(prefix: string): string {
-  return `https://${prefix}-api-city.recyclecoach.com`
+// Fetch with a 5-second timeout. Returns null on any network error so callers
+// can treat unreachable RecycleCoach as "not found" rather than crashing.
+async function rcFetch(url: string): Promise<Response | null> {
+  try {
+    const res = await fetch(url, { signal: AbortSignal.timeout(5000) })
+    return res
+  } catch {
+    return null
+  }
 }
 
 export async function searchRCCity(city: string, state: string): Promise<RCCity | null> {
   const term = encodeURIComponent(`${city}, ${state}, US`)
-  const res = await fetch(`${RC_SEARCH_BASE}/city/search?term=${term}`)
-  if (!res.ok) return null
+  const res = await rcFetch(`${RC_API_BASE}/city/search?term=${term}`)
+  if (!res || !res.ok) return null
   const data = await res.json().catch(() => null)
   const results: unknown[] = Array.isArray(data) ? data : (data?.results ?? [])
   if (!results.length) return null
@@ -43,21 +51,24 @@ export async function searchRCCity(city: string, state: string): Promise<RCCity 
 }
 
 export async function lookupRCZone(rcCity: RCCity, street: string): Promise<string[] | null> {
-  const base = apiBase(rcCity.apigw_prefix)
   const params = new URLSearchParams({
     sku: rcCity.project_id,
     district: rcCity.district_id,
     prompt: 'undefined',
     term: street,
   })
-  const res = await fetch(`${base}/zone-setup/address?${params}`)
-  if (!res.ok) return null
+  // US cities: use apigw /single endpoint (api-city redirects to dead us-api-city for zone-setup)
+  // CA and other cities: use api-city which redirects to the working regional server
+  const url = rcCity.apigw_prefix === 'us'
+    ? `${RC_US_APIGW}/zone-setup/address/single?${params}`
+    : `${RC_API_BASE}/zone-setup/address?${params}`
+  const res = await rcFetch(url)
+  if (!res || !res.ok) return null  // null = API unreachable / server error
   const data = await res.json().catch(() => null)
   const results: unknown[] = Array.isArray(data) ? data : (data?.results ?? [])
-  if (!results.length) return null
+  if (!results.length) return []   // [] = API responded but street not found
   const zones = (results[0] as Record<string, unknown>).zones as Record<string, string> | undefined
-  if (!zones || !Object.keys(zones).length) return null
-  // Deduplicate zone values — each unique zone gets its own API call downstream
+  if (!zones || !Object.keys(zones).length) return []
   return [...new Set(Object.values(zones))].sort().map(v => `zone-${v}`)
 }
 
@@ -77,16 +88,19 @@ export function normalizeRCType(name: string): string | null {
 }
 
 export async function buildRCTypeMap(rcCity: RCCity, zoneId: string): Promise<Map<string, string>> {
-  const base = apiBase(rcCity.apigw_prefix)
   const params = new URLSearchParams({
     project_id: rcCity.project_id,
     district_id: rcCity.district_id,
     zone_id: zoneId,
     lang_cd: 'en_US',
   })
-  const res = await fetch(`${base}/collections?${params}`)
+  // US: zone/collections endpoint works on apigw; CA: api-city (redirects to ca-api-city)
+  const url = rcCity.apigw_prefix === 'us'
+    ? `${RC_US_APIGW}/zone-setup/zone/collections?${params}`
+    : `${RC_API_BASE}/collections?${params}`
+  const res = await rcFetch(url)
   const map = new Map<string, string>()
-  if (!res.ok) return map
+  if (!res || !res.ok) return map
   const data = await res.json().catch(() => null)
   // Actual format: { collection: { types: { "collection-2665": { title: "Garbage" } } } }
   const types = data?.collection?.types as Record<string, Record<string, unknown>> | undefined
@@ -107,7 +121,6 @@ export async function fetchRCMonth(
   year: number,
   month: number, // 1-based
 ): Promise<RCEvent[]> {
-  const base = apiBase(rcCity.apigw_prefix)
   const monthStr = `${year}-${String(month).padStart(2, '0')}`
   const params = new URLSearchParams({
     project_id: rcCity.project_id,
@@ -116,8 +129,8 @@ export async function fetchRCMonth(
     lang_cd: 'en_US',
     month: monthStr,
   })
-  const res = await fetch(`${base}/app_data_zone_schedules?${params}`)
-  if (!res.ok) return []
+  const res = await rcFetch(`${RC_API_BASE}/app_data_zone_schedules?${params}`)
+  if (!res || !res.ok) return []
   const data = await res.json().catch(() => null)
   if (!data) return []
   // Actual format: { DATA: [{ year, months: [{ month, events: [{ date, collections: [{ id, status }] }] }] }] }
@@ -138,7 +151,7 @@ export async function fetchRCMonth(
         for (const col of event.collections) {
           const s = (col.status ?? '').toLowerCase()
           if (s.includes('cancel') || s === 'suspended') continue
-          const eventType = typeMap.get(String(col.id))
+          const eventType = typeMap.size > 0 ? typeMap.get(String(col.id)) : 'pickup'
           if (eventType) events.push({ date: event.date, event_type: eventType })
         }
       }
@@ -158,13 +171,49 @@ export async function getEventsFromRCZone(
   const allEvents: RCEvent[] = []
 
   for (const zoneId of ids) {
-    const typeMap = await buildRCTypeMap(rcCity, zoneId)
-    if (!typeMap.size) continue
-    let cursor = new Date(now.getFullYear(), now.getMonth(), 1)
-    while (cursor <= endDate) {
-      const monthEvents = await fetchRCMonth(rcCity, zoneId, typeMap, cursor.getFullYear(), cursor.getMonth() + 1)
-      allEvents.push(...monthEvents)
-      cursor = new Date(cursor.getFullYear(), cursor.getMonth() + 1, 1)
+    if (rcCity.apigw_prefix === 'us') {
+      // US cities: build type map + single bulk schedule fetch from apigw
+      const typeMap = await buildRCTypeMap(rcCity, zoneId)
+      const params = new URLSearchParams({
+        project_id: rcCity.project_id,
+        district_id: rcCity.district_id,
+        zone_id: zoneId,
+      })
+      const res = await rcFetch(`${RC_US_APIGW}/zone-setup/zone/schedules?${params}`)
+      if (res?.ok) {
+        const data = await res.json().catch(() => null)
+        type Col = { id: number; status: string }
+        type Evt = { date: string; collections: Col[] }
+        type Mon = { month: number; events: Evt[] }
+        type Yr  = { year: number; months: Mon[] }
+        const dataArr = data?.DATA as Yr[] | undefined
+        if (dataArr) {
+          for (const yr of dataArr) {
+            for (const mo of yr.months) {
+              for (const evt of mo.events) {
+                if (!evt.date) continue
+                for (const col of evt.collections) {
+                  const s = (col.status ?? '').toLowerCase()
+                  if (s.includes('cancel') || s === 'suspended') continue
+                  const eventType = typeMap.size > 0
+                    ? typeMap.get(String(col.id))
+                    : 'pickup'
+                  if (eventType) allEvents.push({ date: evt.date, event_type: eventType })
+                }
+              }
+            }
+          }
+        }
+      }
+    } else {
+      // CA and other cities: month-by-month with type map
+      const typeMap = await buildRCTypeMap(rcCity, zoneId)
+      let cursor = new Date(now.getFullYear(), now.getMonth(), 1)
+      while (cursor <= endDate) {
+        const monthEvents = await fetchRCMonth(rcCity, zoneId, typeMap, cursor.getFullYear(), cursor.getMonth() + 1)
+        allEvents.push(...monthEvents)
+        cursor = new Date(cursor.getFullYear(), cursor.getMonth() + 1, 1)
+      }
     }
   }
 
@@ -194,7 +243,7 @@ export async function getRecycleCoachResult(
   const rcCity = await searchRCCity(city, state)
   if (!rcCity) return null
   const zoneIds = await lookupRCZone(rcCity, street)
-  if (!zoneIds) return null
+  if (!zoneIds || !zoneIds.length) return null
   const events = await getEventsFromRCZone(rcCity, zoneIds, daysAhead)
   return { events, city: rcCity, zone_ids: zoneIds }
 }

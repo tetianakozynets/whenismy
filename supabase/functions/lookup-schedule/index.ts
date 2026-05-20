@@ -10,6 +10,8 @@ import {
 import {
   getRecycleCoachResult,
   getEventsFromRCZone,
+  searchRCCity,
+  lookupRCZone,
   type RCCity,
 } from '../_shared/recyclecoach.ts'
 import {
@@ -195,9 +197,25 @@ export async function handler(req: Request): Promise<Response> {
     }
 
     // All other NJ cities: RecycleCoach (NJDEP-funded, covers all 21 counties)
-    const rcResult = await getRecycleCoachResult(street!, city!, state!)
-    if (rcResult) {
-      const supportedTypes = [...new Set(rcResult.events.map(e => e.event_type))]
+    // First check city-level coverage before zone lookup — zone-setup uses a
+    // different subdomain (us-api-city.recyclecoach.com) that may be temporarily
+    // unreachable, while city search (api-city.recyclecoach.com) stays healthy.
+    const rcCity = await searchRCCity(city!, state!)
+    if (rcCity) {
+      const zoneIds = await lookupRCZone(rcCity, street!)
+      if (zoneIds === null) {
+        // Zone-setup API was unreachable — provider outage
+        return json({ error: 'Schedule service temporarily unavailable. Please try again later.', serviceUnavailable: true }, 503)
+      }
+      if (!zoneIds.length) {
+        // City is covered but this street has no zone — address doesn't exist
+        return json({ error: 'Address not found', notFound: true }, 404)
+      }
+      // RecycleCoach does fuzzy street matching — validate the address is real
+      const njExists = await addressExistsNominatim(street!, city!, state!)
+      if (!njExists) return json({ error: 'Address not found', notFound: true }, 404)
+      const events = await getEventsFromRCZone(rcCity, zoneIds, 90)
+      const supportedTypes = [...new Set(events.map(e => e.event_type))]
       const cacheRow = {
         address_key: addressKey,
         recollect_place_id: null,
@@ -207,17 +225,17 @@ export async function handler(req: Request): Promise<Response> {
         supported_event_types: supportedTypes,
         provider: 'recyclecoach',
         provider_data: {
-          project_id: rcResult.city.project_id,
-          district_id: rcResult.city.district_id,
-          zone_ids: rcResult.zone_ids,
-          apigw_prefix: rcResult.city.apigw_prefix,
+          project_id: rcCity.project_id,
+          district_id: rcCity.district_id,
+          zone_ids: zoneIds,
+          apigw_prefix: rcCity.apigw_prefix,
         },
       }
       await supabase.from('place_lookup_cache').upsert(cacheRow)
-      return json({ place: cacheRow, events: rcResult.events })
+      return json({ place: cacheRow, events })
     }
 
-    // RecycleCoach returned nothing — distinguish notFound from notCovered
+    // City not in RecycleCoach — distinguish notFound from notCovered
     const njExists = await addressExistsNominatim(street!, city!, state!)
     if (!njExists) return json({ error: 'Address not found', notFound: true }, 404)
     return json({ error: 'Address not covered', notCovered: true }, 404)
@@ -240,7 +258,9 @@ async function addressExistsNominatim(street: string, city: string, state: strin
     if (!res.ok) return true // fail open so real addresses aren't incorrectly blocked
     const data = await res.json()
     if (!Array.isArray(data) || data.length === 0) return false
-    return !!data[0]?.address?.house_number
+    const addr = data[0]?.address
+    // Accept if Nominatim matched a specific road or house — rejects city-only fuzzy matches
+    return !!(addr?.house_number || addr?.road)
   } catch {
     return true // fail open on network error
   }
