@@ -65,5 +65,6 @@ it('changePassword returns { error: null } on success', async () => {
   mockAuth.signInWithPassword.mockResolvedValueOnce({ data: { user: { id: 'u1' } }, error: null } as any)
   mockAuth.updateUser.mockResolvedValueOnce({ data: { user: { id: 'u1' } }, error: null } as any)
   const result = await changePassword('a@b.com', 'currentpass123', 'newpass12345678')
+  expect(mockAuth.signInWithPassword).toHaveBeenCalledWith({ email: 'a@b.com', password: 'currentpass123' })
   expect(result).toEqual({ error: null })
 })
