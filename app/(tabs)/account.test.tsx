@@ -163,6 +163,13 @@ describe('AccountTab', () => {
     expect(router.push).toHaveBeenCalledWith('/(tabs)/search')
   })
 
+  it('navigates to /change-password when Change password is pressed', async () => {
+    const { getByText } = await renderLoaded(basePrefs)
+    fireEvent.press(getByText('Change password'))
+    const { router } = require('expo-router')
+    expect(router.push).toHaveBeenCalledWith('/change-password')
+  })
+
   // 10. Pressing "Sign out" calls signOut and navigates to /
   it('calls signOut and navigates to / when Sign out is pressed', async () => {
     ;(auth.signOut as jest.Mock).mockResolvedValue(undefined)
