@@ -16,4 +16,6 @@ module.exports = {
       require.resolve('@react-native-async-storage/async-storage/jest/async-storage-mock'),
   },
   testTimeout: 15000,
+  setupFilesAfterEnv: ['@testing-library/react-native/extend-expect'],
+
 }
