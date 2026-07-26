@@ -20,3 +20,15 @@ export async function getSession() {
   const { data } = await supabase.auth.getSession()
   return data.session
 }
+
+export async function changePassword(
+  email: string,
+  currentPassword: string,
+  newPassword: string,
+): Promise<{ error: string | null }> {
+  const { error: verifyError } = await supabase.auth.signInWithPassword({ email, password: currentPassword })
+  if (verifyError) return { error: 'Current password is incorrect.' }
+  const { error: updateError } = await supabase.auth.updateUser({ password: newPassword })
+  if (updateError) return { error: updateError.message }
+  return { error: null }
+}

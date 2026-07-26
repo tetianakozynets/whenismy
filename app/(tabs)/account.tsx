@@ -109,6 +109,14 @@ export default function AccountTab() {
           </>
         )}
 
+        <Pressable
+          style={styles.row}
+          onPress={() => router.push('/change-password')}
+          accessibilityRole="button"
+        >
+          <Text style={styles.rowText}>Change password</Text>
+        </Pressable>
+
         <Pressable style={styles.row} onPress={handleSignOut} accessibilityRole="button">
           <Text style={styles.rowText}>Sign out</Text>
         </Pressable>
