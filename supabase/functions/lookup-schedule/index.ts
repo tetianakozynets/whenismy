@@ -6,7 +6,6 @@ import {
 } from '../_shared/nyc-dsny.ts'
 import {
   parseIcalUrl, getEventsForPlace, getEvents, normalizeEventType,
-  addressSuggestRecollect,
 } from '../_shared/recollect.ts'
 import {
   getRecycleCoachResult,
@@ -239,75 +238,6 @@ export async function handler(req: Request): Promise<Response> {
     // City not in RecycleCoach — distinguish notFound from notCovered
     const njExists = await addressExistsNominatim(street!, city!, state!)
     if (!njExists) return json({ error: 'Address not found', notFound: true }, 404)
-    return json({ error: 'Address not covered', notCovered: true }, 404)
-  }
-
-  // ── Oregon ────────────────────────────────────────────────────────────────
-  if (state!.trim().toUpperCase() === 'OR') {
-    // Portland: public Recollect instance, no API key required.
-    // Source: portland.gov/bps/garbage-recycling/home-recycling/garbage-day-reminders
-    if (city!.trim().toLowerCase() === 'portland') {
-      const suggestion = await addressSuggestRecollect(
-        'CityofPortlandOR',
-        `${street}, Portland, OR`,
-      )
-      if (!suggestion) {
-        const exists = await addressExistsNominatim(street!, city!, state!)
-        if (!exists) return json({ error: 'Address not found', notFound: true }, 404)
-        return json({ error: 'Address not covered', notCovered: true }, 404)
-      }
-      const events = await getEventsForPlace(suggestion.place_id, suggestion.service_id, after, before)
-      const supportedTypes = [...new Set(events.map(e => e.event_type))]
-      const cacheRow = {
-        address_key: addressKey,
-        recollect_place_id: suggestion.place_id,
-        latitude: null,
-        longitude: null,
-        timezone: 'America/Los_Angeles',
-        supported_event_types: supportedTypes,
-        provider: 'recollect-ical',
-        provider_data: { place_id: suggestion.place_id, service_id: suggestion.service_id },
-      }
-      await supabase.from('place_lookup_cache').upsert(cacheRow)
-      return json({ place: cacheRow, events })
-    }
-
-    // Other OR cities: RecycleCoach covers Portland metro suburbs
-    // (Hillsboro, Beaverton, Gresham all under project US_OREGONMETRO).
-    const orRcCity = await searchRCCity(city!, 'OR')
-    if (orRcCity) {
-      const zoneIds = await lookupRCZone(orRcCity, street!)
-      if (zoneIds === null) {
-        return json({ error: 'Schedule service temporarily unavailable. Please try again later.', serviceUnavailable: true }, 503)
-      }
-      if (!zoneIds.length) {
-        return json({ error: 'Address not found', notFound: true }, 404)
-      }
-      const orExists = await addressExistsNominatim(street!, city!, state!)
-      if (!orExists) return json({ error: 'Address not found', notFound: true }, 404)
-      const events = await getEventsFromRCZone(orRcCity, zoneIds, 90)
-      const supportedTypes = [...new Set(events.map(e => e.event_type))]
-      const cacheRow = {
-        address_key: addressKey,
-        recollect_place_id: null,
-        latitude: null,
-        longitude: null,
-        timezone: 'America/Los_Angeles',
-        supported_event_types: supportedTypes,
-        provider: 'recyclecoach',
-        provider_data: {
-          project_id: orRcCity.project_id,
-          district_id: orRcCity.district_id,
-          zone_ids: zoneIds,
-          apigw_prefix: orRcCity.apigw_prefix,
-        },
-      }
-      await supabase.from('place_lookup_cache').upsert(cacheRow)
-      return json({ place: cacheRow, events })
-    }
-
-    const orExists = await addressExistsNominatim(street!, city!, state!)
-    if (!orExists) return json({ error: 'Address not found', notFound: true }, 404)
     return json({ error: 'Address not covered', notCovered: true }, 404)
   }
 

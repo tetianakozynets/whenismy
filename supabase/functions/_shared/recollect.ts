@@ -58,25 +58,6 @@ export function normalizeEventType(raw: string): string {
   return 'garbage'
 }
 
-// ── Public area address suggest (no API key required) ────────────────────────
-// Used for cities that have a public Recollect instance (e.g. Portland, OR).
-// Returns the place_id and service_id needed to fetch pickup events.
-export async function addressSuggestRecollect(
-  areaSlug: string,
-  query: string,
-): Promise<{ place_id: string; service_id: string } | null> {
-  const q = encodeURIComponent(query)
-  const url = `${BASE}/areas/${areaSlug}/services/waste/address-suggest?q=${q}&locale=en-US`
-  const res = await fetch(url)
-  if (!res.ok) return null
-  const data = await res.json().catch(() => null)
-  const results: unknown[] = Array.isArray(data) ? data : []
-  if (!results.length) return null
-  const hit = results[0] as Record<string, unknown>
-  if (!hit?.place_id || !hit?.service_id) return null
-  return { place_id: String(hit.place_id), service_id: String(hit.service_id) }
-}
-
 // ── iCal URL parsing (no API key required) ───────────────────────────────────
 
 export interface IcalUrlParts {
