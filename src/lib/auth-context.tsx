@@ -2,6 +2,7 @@ import React, { createContext, useContext, useEffect, useState } from 'react'
 import { Session, User } from '@supabase/supabase-js'
 import * as Linking from 'expo-linking'
 import { supabase } from './supabase'
+import { registerPushToken } from './push-notifications'
 
 interface AuthContextValue {
   user: User | null
@@ -27,6 +28,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     const { data: listener } = supabase.auth.onAuthStateChange((_event, s) => {
       setSession(s)
+      if (s?.user) registerPushToken(s.user.id)
     })
 
     // Handle email confirmation deep links (whenismy://?token_hash=...&type=signup)
