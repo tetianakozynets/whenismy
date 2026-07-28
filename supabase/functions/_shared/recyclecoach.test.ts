@@ -7,6 +7,7 @@ import {
   fetchRCMonth,
   getEventsFromRCZone,
   getRecycleCoachResult,
+  rcCityAndZonesFromProviderData,
   type RCCity,
 } from './recyclecoach.ts'
 
@@ -77,6 +78,41 @@ Deno.test('normalizeRCType: community drop-off events return null', () => {
   }
 })
 
+Deno.test('rcCityAndZonesFromProviderData: resolves current zone_ids array format', () => {
+  const result = rcCityAndZonesFromProviderData({
+    project_id: 'proj-1', district_id: 'dist-1', zone_ids: ['zone-1', 'zone-2'], apigw_prefix: 'us',
+  })
+  if (!result) throw new Error('Expected a result')
+  if (result.rcCity.project_id !== 'proj-1') throw new Error('Wrong project_id')
+  if (result.zoneIds.length !== 2) throw new Error('Expected 2 zone ids')
+})
+
+Deno.test('rcCityAndZonesFromProviderData: falls back to legacy single zone_id', () => {
+  const result = rcCityAndZonesFromProviderData({
+    project_id: 'proj-1', district_id: 'dist-1', zone_id: 'zone-1', apigw_prefix: 'us',
+  })
+  if (!result) throw new Error('Expected a result')
+  if (result.zoneIds.length !== 1 || result.zoneIds[0] !== 'zone-1') throw new Error('Wrong zoneIds')
+})
+
+Deno.test('rcCityAndZonesFromProviderData: returns null when no zones present', () => {
+  const result = rcCityAndZonesFromProviderData({ project_id: 'proj-1', district_id: 'dist-1' })
+  if (result !== null) throw new Error('Expected null')
+})
+
+Deno.test('rcCityAndZonesFromProviderData: returns null for null input', () => {
+  const result = rcCityAndZonesFromProviderData(null)
+  if (result !== null) throw new Error('Expected null')
+})
+
+Deno.test('rcCityAndZonesFromProviderData: sanitizes an invalid apigw_prefix to "us"', () => {
+  const result = rcCityAndZonesFromProviderData({
+    project_id: 'proj-1', district_id: 'dist-1', zone_ids: ['zone-1'], apigw_prefix: '"; DROP TABLE--',
+  })
+  if (!result) throw new Error('Expected a result')
+  if (result.rcCity.apigw_prefix !== 'us') throw new Error(`Expected sanitized prefix, got "${result.rcCity.apigw_prefix}"`)
+})
+
 // ── API call tests ────────────────────────────────────────────────────────────
 Deno.test('searchRCCity: returns RCCity on valid response', async () => {
   await withMockFetch({
@@ -132,11 +168,15 @@ Deno.test('lookupRCZone: deduplicates identical zone values', async () => {
   })
 })
 
-Deno.test('lookupRCZone: returns null when results empty', async () => {
+Deno.test('lookupRCZone: returns empty array when results empty (not an outage)', async () => {
+  // Distinct from `null`, which lookup-schedule/index.ts treats as an API
+  // outage (503). An empty results array means the API responded fine but
+  // this street has no zone — that's a 404 "not found", not a 503.
   const city: RCCity = { project_id: 'NJ_ESS', district_id: 'NEWARK', apigw_prefix: 'us' }
   await withMockFetch({ 'zone-setup/address': { results: [] } }, async () => {
     const zoneIds = await lookupRCZone(city, '1 Unknown Pl')
-    if (zoneIds !== null) throw new Error('Expected null')
+    if (zoneIds === null) throw new Error('Expected [], not null (null means outage)')
+    if (zoneIds.length !== 0) throw new Error(`Expected empty array, got ${JSON.stringify(zoneIds)}`)
   })
 })
 
@@ -255,7 +295,7 @@ Deno.test('getEventsFromRCZone: date-range filter excludes past and far-future e
 
   await withMockFetch({
     '/collections': { status: 'success', collection: { types: { 'collection-2665': { title: 'Garbage' } } } },
-    'app_data_zone_schedules': scheduleBody,
+    'zone-setup/zone/schedules': scheduleBody,
   }, async () => {
     const events = await getEventsFromRCZone(city, ['zone-z14089'], 30)
     const dates = events.map(e => e.date)
@@ -275,7 +315,7 @@ Deno.test('getEventsFromRCZone: deduplicates same date+type pairs', async () => 
 
   await withMockFetch({
     '/collections': { status: 'success', collection: { types: { 'collection-2665': { title: 'Garbage' } } } },
-    'app_data_zone_schedules': {
+    'zone-setup/zone/schedules': {
       DATA: [{
         year: now.getFullYear(),
         months: [{

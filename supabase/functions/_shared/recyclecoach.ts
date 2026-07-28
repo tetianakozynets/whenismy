@@ -160,6 +160,32 @@ export async function fetchRCMonth(
   return events
 }
 
+// Rebuilds an RCCity + zone id list from a place_lookup_cache.provider_data
+// row so callers (e.g. refresh-schedules) can re-fetch without re-resolving
+// the address. Handles both the current zone_ids array format and the
+// legacy single zone_id format, and sanitizes apigw_prefix defensively
+// since it's interpolated into request URLs.
+export function rcCityAndZonesFromProviderData(
+  pd: {
+    project_id: string
+    district_id: string
+    zone_ids?: string[]
+    zone_id?: string
+    apigw_prefix?: string
+  } | null,
+): { rcCity: RCCity; zoneIds: string[] } | null {
+  if (!pd) return null
+  const zoneIds = pd.zone_ids ?? (pd.zone_id ? [pd.zone_id] : null)
+  if (!zoneIds || !zoneIds.length) return null
+  const rawPrefix = pd.apigw_prefix ?? 'us'
+  const rcCity: RCCity = {
+    project_id: pd.project_id,
+    district_id: pd.district_id,
+    apigw_prefix: /^[a-z0-9-]{1,16}$/.test(rawPrefix) ? rawPrefix : 'us',
+  }
+  return { rcCity, zoneIds }
+}
+
 export async function getEventsFromRCZone(
   rcCity: RCCity,
   zoneIds: string | string[],

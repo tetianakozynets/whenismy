@@ -4,6 +4,7 @@ import {
   parseJCDays,
   generateJCWeeklyEvents,
   getJerseyCityEvents,
+  eventsFromProviderData,
 } from './jersey-city.ts'
 
 type FetchMock = Record<string, unknown>
@@ -65,6 +66,27 @@ Deno.test('generateJCWeeklyEvents: produces weekly events for each day', () => {
 Deno.test('generateJCWeeklyEvents: empty days returns empty array', () => {
   const events = generateJCWeeklyEvents([], 'recycling', 60)
   if (events.length !== 0) throw new Error('Expected empty array')
+})
+
+Deno.test('eventsFromProviderData: combines garbage and recycling days, sorted', () => {
+  const events = eventsFromProviderData({ garbage_days: ['monday'], recycling_days: ['thursday'] }, 14)
+  const types = new Set(events.map(e => e.event_type))
+  if (!types.has('garbage')) throw new Error('Missing garbage')
+  if (!types.has('recycling')) throw new Error('Missing recycling')
+  for (let i = 1; i < events.length; i++) {
+    if (events[i].date < events[i - 1].date) throw new Error('Events not sorted')
+  }
+})
+
+Deno.test('eventsFromProviderData: null provider_data returns empty array', () => {
+  const events = eventsFromProviderData(null, 14)
+  if (events.length !== 0) throw new Error('Expected empty array')
+})
+
+Deno.test('eventsFromProviderData: missing recycling_days defaults to none', () => {
+  const events = eventsFromProviderData({ garbage_days: ['tuesday'] }, 14)
+  if (events.some(e => e.event_type === 'recycling')) throw new Error('Expected no recycling events')
+  if (!events.some(e => e.event_type === 'garbage')) throw new Error('Expected garbage events')
 })
 
 Deno.test('getJerseyCityEvents: returns events when geocode and zone lookup succeed', async () => {

@@ -82,6 +82,19 @@ function nextOccurrence(dow: number, from: Date): Date {
   return d
 }
 
+// Regenerates the recurring garbage/recycling schedule from the stored zone
+// days (place_lookup_cache.provider_data) — no external API call needed.
+export function eventsFromProviderData(
+  pd: { garbage_days?: string[]; recycling_days?: string[] } | null,
+  daysAhead: number,
+): JCEvent[] {
+  if (!pd) return []
+  return [
+    ...generateJCWeeklyEvents(pd.garbage_days ?? [], 'garbage', daysAhead),
+    ...generateJCWeeklyEvents(pd.recycling_days ?? [], 'recycling', daysAhead),
+  ].sort((a, b) => a.date.localeCompare(b.date))
+}
+
 export function generateJCWeeklyEvents(
   days: string[],
   eventType: string,

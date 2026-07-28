@@ -1,21 +1,12 @@
 import {
-  isNYCAddress,
   parseDSNYDays,
   generateDSNYEvents,
   type DSNYZone,
 } from './nyc-dsny.ts'
 
-Deno.test('isNYCAddress: recognises NYC borough names', () => {
-  for (const city of ['New York', 'Brooklyn', 'Manhattan', 'Bronx', 'Queens', 'Staten Island']) {
-    if (!isNYCAddress(city, 'NY')) throw new Error(`Expected ${city} NY to be NYC`)
-  }
-})
-
-Deno.test('isNYCAddress: rejects non-NYC NY cities', () => {
-  if (isNYCAddress('Buffalo', 'NY')) throw new Error('Buffalo NY should not be NYC')
-  if (isNYCAddress('Albany', 'NY')) throw new Error('Albany NY should not be NYC')
-  if (isNYCAddress('New York', 'NJ')) throw new Error('New York NJ should not be NYC')
-})
+// isNYCAddress was removed when NYC routing switched to purely state-based
+// geocoding (see lookup-schedule/index.test.ts) — any NY address now goes
+// through the geocoder, which naturally rejects non-NYC addresses.
 
 Deno.test('parseDSNYDays: parses single day', () => {
   const result = parseDSNYDays('Mon')

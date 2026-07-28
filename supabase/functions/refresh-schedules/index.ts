@@ -1,5 +1,9 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { getEvents, normalizeEventType, parseIcalUrl, getEventsForPlace } from '../_shared/recollect.ts'
+import { normalizeAddress } from '../_shared/address.ts'
+import { generateHobokenEvents } from '../_shared/hoboken.ts'
+import { eventsFromProviderData as jerseyCityEvents } from '../_shared/jersey-city.ts'
+import { rcCityAndZonesFromProviderData, getEventsFromRCZone } from '../_shared/recyclecoach.ts'
 
 interface UserPreferenceRow {
   user_id: string
@@ -7,6 +11,18 @@ interface UserPreferenceRow {
   supported_event_types: string[] | null
   provider: string | null
   ical_url: string | null
+  street: string
+  city: string
+  state: string
+}
+
+const REFRESHABLE_PROVIDERS = ['nyc-dsny', 'recollect-ical', 'hoboken-static', 'jersey-city', 'recyclecoach']
+
+export function usersForSlotFilter(): string {
+  return [
+    'recollect_place_id.not.is.null',
+    ...REFRESHABLE_PROVIDERS.map(p => `provider.eq.${p}`),
+  ].join(',')
 }
 
 // 336 slots = 30-min slots per week (7 days × 48 slots/day)
@@ -33,9 +49,8 @@ export async function getUsersForSlot(
 ): Promise<UserPreferenceRow[]> {
   const { data, error } = await supabase
     .from('user_preferences')
-    .select('user_id, recollect_place_id, supported_event_types, provider, ical_url')
-    // TODO (Plan 3): add NJ providers — provider.eq.recyclecoach,provider.eq.jersey-city,provider.eq.hoboken-static
-    .or('recollect_place_id.not.is.null,provider.eq.nyc-dsny,provider.eq.recollect-ical')
+    .select('user_id, recollect_place_id, supported_event_types, provider, ical_url, street, city, state')
+    .or(usersForSlotFilter())
 
   if (error) throw error
   const rows = (data ?? []) as UserPreferenceRow[]
@@ -78,7 +93,27 @@ async function handler(_req: Request): Promise<Response> {
       let events: Array<{ date: string; event_type: string }> = []
       const source = 'recollect'
 
-      if (user.provider === 'recollect-ical' && user.ical_url) {
+      if (user.provider === 'hoboken-static') {
+        // Citywide fixed schedule — regenerate locally, no lookup needed.
+        events = generateHobokenEvents(90)
+      } else if (user.provider === 'jersey-city' || user.provider === 'recyclecoach') {
+        const addressKey = normalizeAddress(user.street, user.city, user.state)
+        const { data: cached } = await supabase
+          .from('place_lookup_cache')
+          .select('provider_data')
+          .eq('address_key', addressKey)
+          .maybeSingle()
+        const providerData = (cached?.provider_data ?? null) as Record<string, unknown> | null
+
+        if (user.provider === 'jersey-city') {
+          events = jerseyCityEvents(providerData as { garbage_days?: string[]; recycling_days?: string[] } | null, 90)
+        } else {
+          // deno-lint-ignore no-explicit-any
+          const resolved = rcCityAndZonesFromProviderData(providerData as any)
+          if (!resolved) { errors++; continue }
+          events = await getEventsFromRCZone(resolved.rcCity, resolved.zoneIds, 90)
+        }
+      } else if (user.provider === 'recollect-ical' && user.ical_url) {
         const parts = parseIcalUrl(user.ical_url)
         if (!parts) { errors++; continue }
         const rawEvents = await getEventsForPlace(parts.placeId, parts.serviceId, after, before)

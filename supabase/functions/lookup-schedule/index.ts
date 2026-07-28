@@ -1,6 +1,8 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { checkRateLimit } from '../_shared/rate-limit.ts'
 import { timezoneFromLatLng } from '../_shared/tz.ts'
+import { normalizeAddress } from '../_shared/address.ts'
+import { generateHobokenEvents } from '../_shared/hoboken.ts'
 import {
   geocodeNYC, lookupDSNYZone, generateDSNYEvents,
 } from '../_shared/nyc-dsny.ts'
@@ -12,17 +14,15 @@ import {
   getEventsFromRCZone,
   searchRCCity,
   lookupRCZone,
-  type RCCity,
+  rcCityAndZonesFromProviderData,
 } from '../_shared/recyclecoach.ts'
 import {
   isJerseyCity,
   getJerseyCityEvents,
-  generateJCWeeklyEvents,
+  eventsFromProviderData as jerseyCityEventsFromProviderData,
 } from '../_shared/jersey-city.ts'
 
-export function normalizeAddress(street: string, city: string, state: string): string {
-  return [street, city, state].map(s => s.trim().toLowerCase()).join('|')
-}
+export { normalizeAddress }
 
 export async function handler(req: Request): Promise<Response> {
   if (req.method === 'OPTIONS') return new Response(null, { headers: corsHeaders() })
@@ -300,36 +300,14 @@ async function eventsFromCache(
   }
 
   if (cached.provider === 'recyclecoach') {
-    const pd = cached.provider_data as {
-      project_id: string
-      district_id: string
-      zone_ids?: string[]   // current format
-      zone_id?: string      // legacy single-zone format
-      apigw_prefix: string
-    } | null
-    if (pd) {
-      const rawPrefix = pd.apigw_prefix ?? 'us'
-      const rcCity: RCCity = {
-        project_id: pd.project_id,
-        district_id: pd.district_id,
-        apigw_prefix: /^[a-z0-9-]{1,16}$/.test(rawPrefix) ? rawPrefix : 'us',
-      }
-      const zoneIds = pd.zone_ids ?? (pd.zone_id ? [pd.zone_id] : null)
-      if (zoneIds) return getEventsFromRCZone(rcCity, zoneIds, 90)
-    }
+    // deno-lint-ignore no-explicit-any
+    const resolved = rcCityAndZonesFromProviderData(cached.provider_data as any)
+    if (resolved) return getEventsFromRCZone(resolved.rcCity, resolved.zoneIds, 90)
   }
 
   if (cached.provider === 'jersey-city') {
-    const pd = cached.provider_data as {
-      garbage_days: string[]
-      recycling_days: string[]
-    } | null
-    if (pd) {
-      return [
-        ...generateJCWeeklyEvents(pd.garbage_days ?? [], 'garbage', 90),
-        ...generateJCWeeklyEvents(pd.recycling_days ?? [], 'recycling', 90),
-      ].sort((a, b) => a.date.localeCompare(b.date))
-    }
+    const pd = cached.provider_data as { garbage_days: string[]; recycling_days: string[] } | null
+    return jerseyCityEventsFromProviderData(pd, 90)
   }
 
   return []
@@ -347,49 +325,6 @@ function corsHeaders() {
     'Access-Control-Allow-Origin': '*',
     'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
   }
-}
-
-// Hoboken has a single citywide schedule — same for every address, no zones.
-// Source: https://www.hobokennj.gov/resources/waste-collection
-function generateHobokenEvents(daysAhead: number): { date: string; event_type: string }[] {
-  const DOW: Record<string, number> = {
-    sunday: 0, monday: 1, tuesday: 2, wednesday: 3,
-    thursday: 4, friday: 5, saturday: 6,
-  }
-  function pad(n: number) { return String(n).padStart(2, '0') }
-  function localStr(d: Date) {
-    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
-  }
-  function nextDow(dow: number, from: Date): Date {
-    const diff = (dow - from.getDay() + 7) % 7
-    const d = new Date(from)
-    d.setDate(d.getDate() + diff)
-    return d
-  }
-
-  const SCHEDULE: { dow: string; event_type: string }[] = [
-    { dow: 'monday',    event_type: 'garbage' },
-    { dow: 'tuesday',   event_type: 'recycling' },   // commingled (plastics, glass, cans)
-    { dow: 'thursday',  event_type: 'garbage' },
-    { dow: 'friday',    event_type: 'recycling' },   // paper + cardboard
-    { dow: 'friday',    event_type: 'bulk_waste' },  // metal furniture, appliances, e-waste
-    { dow: 'friday',    event_type: 'yard_waste' },  // seasonal yard/garden waste
-    { dow: 'saturday',  event_type: 'garbage' },
-  ]
-
-  const start = new Date()
-  start.setHours(0, 0, 0, 0)
-  const endMs = start.getTime() + daysAhead * 86_400_000
-  const events: { date: string; event_type: string }[] = []
-
-  for (const { dow, event_type } of SCHEDULE) {
-    const d = nextDow(DOW[dow], start)
-    while (d.getTime() < endMs) {
-      events.push({ date: localStr(d), event_type })
-      d.setDate(d.getDate() + 7)
-    }
-  }
-  return events.sort((a, b) => a.date.localeCompare(b.date))
 }
 
 if (import.meta.main) Deno.serve(handler)
