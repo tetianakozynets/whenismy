@@ -86,10 +86,13 @@ git worktree add .worktrees/<branch-name> -b feature/<branch-name>
 
 Before deploying to production:
 
-1. Set database config via Supabase dashboard → Settings → Database:
+1. The cron jobs (`send-notifications`, `refresh-schedules`, `recompute-notify-at`) authenticate to
+   Edge Functions via a key stored in **Supabase Vault**, not a custom `app.*` GUC parameter —
+   `ALTER DATABASE postgres SET "app.xxx"` fails with `42501 permission denied` on hosted Supabase;
+   custom `app.*` params aren't settable there at all. See migration `20260728000010_cron_vault_auth.sql`.
+   One-time setup, run by hand in the SQL Editor (never commit the real value to a migration):
    ```sql
-   ALTER DATABASE postgres SET "app.edge_function_base" = 'https://<ref>.supabase.co/functions/v1';
-   ALTER DATABASE postgres SET "app.service_role_key" = '<service-role-key>';
+   select vault.create_secret('<your sb_secret_... key>', 'cron_service_role_key');
    ```
 2. Set Edge Function secrets: `npx supabase secrets set RECOLLECT_API_KEY=... SUPPORT_EMAIL=...`
 3. `coverage-request` email requires Pro plan SMTP or swap to Resend/SendGrid
