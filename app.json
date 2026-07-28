@@ -5,7 +5,11 @@
     "version": "1.0.0",
     "orientation": "portrait",
     "scheme": "whenismy",
-    "platforms": ["ios", "android", "web"],
+    "platforms": [
+      "ios",
+      "android",
+      "web"
+    ],
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "app.whenismy"
@@ -29,6 +33,13 @@
     ],
     "experiments": {
       "typedRoutes": true
-    }
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "f8ef8d1a-e5c5-4109-a606-b1a8a41b43aa"
+      }
+    },
+    "owner": "tetianako"
   }
 }

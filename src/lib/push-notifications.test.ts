@@ -1,7 +1,13 @@
 import { canUsePushNotifications, savePushToken } from './push-notifications'
 import * as Notifications from 'expo-notifications'
 import * as Device from 'expo-device'
+import Constants from 'expo-constants'
 import { supabase } from './supabase'
+
+jest.mock('expo-constants', () => ({
+  __esModule: true,
+  default: { expoConfig: { extra: { eas: { projectId: 'test-project-id' } } } },
+}))
 
 // __esModule: true ensures Babel passes the same object through interop,
 // so mutations in this test file are visible to the implementation module.
@@ -54,6 +60,15 @@ it('savePushToken upserts to push_tokens', async () => {
     { user_id: 'u1', expo_push_token: 'ExponentPushToken[abc]', updated_at: expect.any(String) },
     { onConflict: 'user_id' }
   )
+})
+
+it('getExpoPushToken passes the EAS projectId from app config', async () => {
+  ;(Notifications.getExpoPushTokenAsync as jest.Mock).mockResolvedValueOnce({
+    data: 'ExponentPushToken[xyz]',
+  })
+  const { getExpoPushToken } = require('./push-notifications')
+  await getExpoPushToken()
+  expect(Notifications.getExpoPushTokenAsync).toHaveBeenCalledWith({ projectId: 'test-project-id' })
 })
 
 it('getExpoPushToken returns token string on success', async () => {

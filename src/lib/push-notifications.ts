@@ -1,5 +1,6 @@
 import * as Notifications from 'expo-notifications'
 import * as Device from 'expo-device'
+import Constants from 'expo-constants'
 import { supabase } from './supabase'
 
 Notifications.setNotificationHandler({
@@ -25,7 +26,10 @@ export async function canUsePushNotifications(): Promise<boolean> {
 
 export async function getExpoPushToken(): Promise<string | null> {
   try {
-    const { data } = await Notifications.getExpoPushTokenAsync()
+    const projectId = Constants.expoConfig?.extra?.eas?.projectId
+    const { data } = await Notifications.getExpoPushTokenAsync(
+      projectId ? { projectId } : undefined
+    )
     return data
   } catch {
     return null
