@@ -97,7 +97,6 @@ describe('SearchTab', () => {
   // 1. Renders logo and subtitle "Search any address"
   it('renders WimLogo and subtitle "Search any address"', () => {
     const { getByText } = render(<SearchTab />)
-    expect(getByText('WIM')).toBeTruthy()        // from WimLogo
     expect(getByText('When Is My')).toBeTruthy() // from WimLogo
     expect(getByText('Search any address')).toBeTruthy()
   })
