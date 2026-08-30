@@ -5,6 +5,7 @@
     "version": "1.0.0",
     "orientation": "portrait",
     "scheme": "whenismy",
+    "icon": "./assets/icon.png",
     "platforms": [
       "ios",
       "android",
@@ -15,11 +16,16 @@
       "bundleIdentifier": "app.whenismy"
     },
     "android": {
-      "package": "app.whenismy"
+      "package": "app.whenismy",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#e94560"
+      }
     },
     "web": {
       "bundler": "metro",
-      "output": "static"
+      "output": "static",
+      "favicon": "./assets/favicon.png"
     },
     "plugins": [
       "expo-router",
