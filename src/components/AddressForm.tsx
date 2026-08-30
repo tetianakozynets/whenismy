@@ -51,20 +51,23 @@ export function AddressForm({ onSubmit, loading }: Props) {
         autoCapitalize="words"
         returnKeyType="next"
       />
-      <TextInput
-        style={[styles.input, isNYC && styles.inputLocked]}
-        placeholder="City"
-        placeholderTextColor={colors.textSecondary}
-        value={city}
-        onChangeText={isNYC ? undefined : setCity}
-        editable={!isNYC}
-        testID="input-city"
-        autoCapitalize="words"
-        returnKeyType="done"
-        onSubmitEditing={handleSubmit}
-      />
-      {isNYC && (
-        <Text style={styles.lockedHint}>🔒 Auto-filled for NYC addresses</Text>
+      {isNYC ? (
+        <View style={styles.cityStatic} testID="input-city">
+          <Text style={styles.cityStaticLabel}>City</Text>
+          <Text style={styles.cityStaticValue}>{city}</Text>
+        </View>
+      ) : (
+        <TextInput
+          style={styles.input}
+          placeholder="City"
+          placeholderTextColor={colors.textSecondary}
+          value={city}
+          onChangeText={setCity}
+          testID="input-city"
+          autoCapitalize="words"
+          returnKeyType="done"
+          onSubmitEditing={handleSubmit}
+        />
       )}
       <View style={styles.stateRow}>
         {SUPPORTED_STATES.map(({ label, value }) => (
@@ -145,15 +148,20 @@ const styles = StyleSheet.create({
     flexShrink: 1,
     minWidth: 0,
   },
-  inputLocked: {
-    backgroundColor: colors.background,
-    borderStyle: 'dashed',
+  cityStatic: { gap: 4 },
+  cityStaticLabel: {
+    fontSize: 11,
     color: colors.textSecondary,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
   },
-  lockedHint: {
-    fontSize: 12,
-    color: colors.textSecondary,
-    marginTop: -6,
+  cityStaticValue: {
+    fontSize: 15,
+    fontWeight: '500',
+    color: colors.text,
+    paddingBottom: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
   },
   error: { color: colors.error, fontSize: 14 },
   button: {

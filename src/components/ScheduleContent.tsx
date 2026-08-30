@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { View, Text, ScrollView, Pressable, StyleSheet, useWindowDimensions } from 'react-native'
+import { View, Text, ScrollView, Pressable, StyleSheet, useWindowDimensions, Platform } from 'react-native'
 import { router } from 'expo-router'
 import { LookupResponse, PickupEvent } from '../lib/types'
 import { NextPickupCard } from './NextPickupCard'
@@ -154,7 +154,7 @@ export function ScheduleContent({ result, onBack, address, showBack = true, save
           )}
         </>
       )}
-      {!user && (
+      {!user && Platform.OS !== 'web' && (
         <Pressable
           style={styles.upsellBanner}
           onPress={() => router.push('/sign-in')}

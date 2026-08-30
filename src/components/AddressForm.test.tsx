@@ -7,8 +7,8 @@ describe('AddressForm', () => {
     const onSubmit = jest.fn()
     const { getByTestId } = render(<AddressForm onSubmit={onSubmit} loading={false} />)
     fireEvent.changeText(getByTestId('input-street'), '  123 Main St  ')
-    // City is locked to "New York City" when NYC is selected — changeText is a no-op
-    fireEvent.changeText(getByTestId('input-city'), 'Ignored')
+    // City is locked to "New York City" when NYC is selected — rendered as a
+    // static value, not an editable input
     fireEvent.press(getByTestId('submit-button'))
     expect(onSubmit).toHaveBeenCalledWith('123 Main St', 'New York City', 'NY')
   })
@@ -36,7 +36,6 @@ describe('AddressForm', () => {
   it('shows error and does not submit when street is empty', () => {
     const onSubmit = jest.fn()
     const { getByTestId } = render(<AddressForm onSubmit={onSubmit} loading={false} />)
-    fireEvent.changeText(getByTestId('input-city'), 'Springfield')
     fireEvent.press(getByTestId('submit-button'))
     expect(onSubmit).not.toHaveBeenCalled()
     expect(getByTestId('form-error')).toBeTruthy()
