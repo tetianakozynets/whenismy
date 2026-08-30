@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
 import {
-  View, Text, SafeAreaView, StyleSheet, Alert, Pressable,
+  View, Text, SafeAreaView, StyleSheet, Alert, Pressable, Platform,
 } from 'react-native'
 import { router, Redirect } from 'expo-router'
 import { AddressForm } from '../src/components/AddressForm'
@@ -136,16 +136,18 @@ export default function HomeScreen() {
     <SafeAreaView style={styles.safe}>
       <View style={styles.container}>
         {formContent}
-        <Pressable
-          style={styles.signInRow}
-          onPress={() => router.push({ pathname: '/sign-in', params: { mode: 'signin' } })}
-          accessibilityRole="button"
-          testID="btn-sign-in"
-        >
-          <Text style={styles.signInText}>
-            Have an account? <Text style={styles.signInLink}>Sign in →</Text>
-          </Text>
-        </Pressable>
+        {Platform.OS !== 'web' && (
+          <Pressable
+            style={styles.signInRow}
+            onPress={() => router.push({ pathname: '/sign-in', params: { mode: 'signin' } })}
+            accessibilityRole="button"
+            testID="btn-sign-in"
+          >
+            <Text style={styles.signInText}>
+              Have an account? <Text style={styles.signInLink}>Sign in →</Text>
+            </Text>
+          </Pressable>
+        )}
       </View>
       {matches && (
         <AddressMatchPicker

@@ -63,6 +63,9 @@ export function AddressForm({ onSubmit, loading }: Props) {
         returnKeyType="done"
         onSubmitEditing={handleSubmit}
       />
+      {isNYC && (
+        <Text style={styles.lockedHint}>🔒 Auto-filled for NYC addresses</Text>
+      )}
       <View style={styles.stateRow}>
         {SUPPORTED_STATES.map(({ label, value }) => (
           <Pressable
@@ -111,6 +114,7 @@ const styles = StyleSheet.create({
   },
   stateRow: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     alignItems: 'center',
     gap: spacing.sm,
   },
@@ -139,8 +143,18 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     fontStyle: 'italic',
     flexShrink: 1,
+    minWidth: 0,
   },
-  inputLocked: { color: colors.textSecondary, opacity: 0.7 },
+  inputLocked: {
+    backgroundColor: colors.background,
+    borderStyle: 'dashed',
+    color: colors.textSecondary,
+  },
+  lockedHint: {
+    fontSize: 12,
+    color: colors.textSecondary,
+    marginTop: -6,
+  },
   error: { color: colors.error, fontSize: 14 },
   button: {
     backgroundColor: colors.primary,
