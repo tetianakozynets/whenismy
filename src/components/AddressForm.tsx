@@ -159,7 +159,7 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '500',
     color: colors.text,
-    paddingBottom: 12,
+    paddingBottom: 18,
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
   },
