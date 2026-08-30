@@ -8,8 +8,8 @@ describe('AddressForm', () => {
     const { getByTestId } = render(<AddressForm onSubmit={onSubmit} loading={false} />)
     fireEvent.press(getByTestId('state-chip-NY'))
     fireEvent.changeText(getByTestId('input-street'), '  123 Main St  ')
-    // City is locked to "New York City" when NYC is selected — rendered as a
-    // static value, not an editable input
+    // City is locked to "New York City" when NYC is selected — changeText is a no-op
+    fireEvent.changeText(getByTestId('input-city'), 'Ignored')
     fireEvent.press(getByTestId('submit-button'))
     expect(onSubmit).toHaveBeenCalledWith('123 Main St', 'New York City', 'NY')
   })
