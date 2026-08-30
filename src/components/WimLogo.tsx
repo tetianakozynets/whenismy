@@ -20,7 +20,7 @@ export function WimLogo({ titleSize = 48, align = 'left' }: Props) {
         resizeMode="contain"
         style={{ width: wordmarkWidth, height: titleSize }}
       />
-      <Text style={[styles.subtitle, { width: wordmarkWidth }]}>
+      <Text style={styles.subtitle}>
         When Is My
       </Text>
     </View>
@@ -40,7 +40,9 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     textTransform: 'uppercase',
     letterSpacing: 3,
-    marginTop: 4,
     textAlign: 'center',
+    width: 130.66,
+    paddingLeft: 9,
+    marginTop: 5,
   },
 })
