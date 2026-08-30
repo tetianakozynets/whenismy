@@ -7,14 +7,20 @@ interface Props {
   align?: 'left' | 'center'
 }
 
+// Natural aspect ratio (width / height) of assets/wim-wordmark.png
+const WORDMARK_ASPECT_RATIO = 936 / 291
+
 export function WimLogo({ titleSize = 48, align = 'left' }: Props) {
+  const wordmarkWidth = titleSize * WORDMARK_ASPECT_RATIO
+
   return (
     <View style={[styles.container, align === 'center' && styles.containerCentered]}>
       <Image
-        source={require('../../assets/icon.png')}
-        style={{ width: titleSize, height: titleSize, borderRadius: titleSize * 0.22 }}
+        source={require('../../assets/wim-wordmark.png')}
+        resizeMode="contain"
+        style={{ width: wordmarkWidth, height: titleSize }}
       />
-      <Text style={styles.subtitle}>
+      <Text style={[styles.subtitle, { width: wordmarkWidth }]}>
         When Is My
       </Text>
     </View>
