@@ -18,8 +18,8 @@ const NYC_CITY = 'New York City'
 
 export function AddressForm({ onSubmit, loading }: Props) {
   const [street, setStreet] = useState('')
-  const [city, setCity] = useState(NYC_CITY)
-  const [state, setState] = useState<string>('NY')
+  const [city, setCity] = useState('')
+  const [state, setState] = useState<string>('NJ')
   const [error, setError] = useState<string | null>(null)
   const isNYC = state === 'NY'
 

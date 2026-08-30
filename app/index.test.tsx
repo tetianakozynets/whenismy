@@ -52,7 +52,7 @@ it('navigates to /schedule and saves result to store on success (narrow)', async
   const { getByTestId } = render(<HomeScreen />)
   fireEvent.changeText(getByTestId('input-street'), '123 Main St')
   fireEvent.changeText(getByTestId('input-city'), 'Springfield')
-  // NY is pre-selected by default
+  // NJ is pre-selected by default
   fireEvent.press(getByTestId('submit-button'))
 
   await waitFor(() => {
@@ -82,7 +82,7 @@ it('does not navigate on success when in split layout (wide screen)', async () =
   useSplitLayout.mockReturnValue(true)
   ;(api.lookupSchedule as jest.Mock).mockResolvedValueOnce(mockResult)
   const { getByTestId } = render(<HomeScreen />)
-  fireEvent.press(getByTestId('state-chip-NJ'))         // switch first — clears city
+  // NJ is pre-selected by default
   fireEvent.changeText(getByTestId('input-street'), '123 Main St')
   fireEvent.changeText(getByTestId('input-city'), 'Springfield')
   fireEvent.press(getByTestId('submit-button'))

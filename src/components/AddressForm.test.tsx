@@ -6,6 +6,7 @@ describe('AddressForm', () => {
   it('calls onSubmit with trimmed street and auto-filled "New York City" when NYC is selected', () => {
     const onSubmit = jest.fn()
     const { getByTestId } = render(<AddressForm onSubmit={onSubmit} loading={false} />)
+    fireEvent.press(getByTestId('state-chip-NY'))
     fireEvent.changeText(getByTestId('input-street'), '  123 Main St  ')
     // City is locked to "New York City" when NYC is selected — rendered as a
     // static value, not an editable input
@@ -16,6 +17,7 @@ describe('AddressForm', () => {
   it('clears city and makes it editable when switching from NYC to NJ', () => {
     const onSubmit = jest.fn()
     const { getByTestId } = render(<AddressForm onSubmit={onSubmit} loading={false} />)
+    fireEvent.press(getByTestId('state-chip-NY'))
     fireEvent.press(getByTestId('state-chip-NJ'))
     fireEvent.changeText(getByTestId('input-street'), '123 Main St')
     fireEvent.changeText(getByTestId('input-city'), 'Newark')
@@ -23,10 +25,9 @@ describe('AddressForm', () => {
     expect(onSubmit).toHaveBeenCalledWith('123 Main St', 'Newark', 'NJ')
   })
 
-  it('calls onSubmit with NJ when NJ chip is selected', () => {
+  it('calls onSubmit with NJ by default', () => {
     const onSubmit = jest.fn()
     const { getByTestId } = render(<AddressForm onSubmit={onSubmit} loading={false} />)
-    fireEvent.press(getByTestId('state-chip-NJ'))       // switch first — clears city
     fireEvent.changeText(getByTestId('input-street'), '123 Main St')
     fireEvent.changeText(getByTestId('input-city'), 'Newark')
     fireEvent.press(getByTestId('submit-button'))

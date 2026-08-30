@@ -143,7 +143,8 @@ describe('SearchTab', () => {
     ;(apiLib.isError as jest.Mock).mockReturnValue(false)
 
     const utils = render(<SearchTab />)
-    // NYC is default — city is locked to "New York City", changeText for city is a no-op
+    // Select NYC — city is locked to "New York City", changeText for city is a no-op
+    fireEvent.press(utils.getByTestId('state-chip-NY'))
     submitAddress(utils, '123 main st', 'ignored')
 
     await waitFor(() => {
@@ -159,8 +160,7 @@ describe('SearchTab', () => {
     ;(apiLib.isError as jest.Mock).mockReturnValue(false)
 
     const utils = render(<SearchTab />)
-    // Default state is NY; select NJ instead to verify state is forwarded
-    fireEvent.press(utils.getByTestId('state-chip-NJ'))
+    // NJ is the default state — submit as-is to verify it's forwarded
     submitAddress(utils, '456 Oak Ave', 'Newark')
 
     await waitFor(() => {
