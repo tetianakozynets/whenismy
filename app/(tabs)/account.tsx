@@ -21,7 +21,9 @@ export default function AccountTab() {
   const [enabling, setEnabling] = useState(false)
 
   useEffect(() => {
-    getSavedAddress().then(addr => setSaved(addr ?? false))
+    getSavedAddress()
+      .then(addr => setSaved(addr ?? false))
+      .catch(() => setSaved(false))
   }, [])
 
   useEffect(() => {

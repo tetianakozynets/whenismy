@@ -21,7 +21,13 @@ export default function ScheduleTab() {
     setLoadError(null)
     setResult(null)
 
-    const addr = await getSavedAddress()
+    let addr: SavedAddress | null
+    try {
+      addr = await getSavedAddress()
+    } catch {
+      setSaved(false)
+      return
+    }
     if (!addr) { setSaved(false); return }
     setSaved(addr)
 
