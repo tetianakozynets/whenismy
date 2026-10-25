@@ -20,6 +20,10 @@ jest.mock('../src/lib/user-api', () => ({
   deleteAccount: jest.fn().mockResolvedValue({}),
 }))
 
+jest.mock('../src/lib/enable-reminders', () => ({
+  enableRemindersForAddress: jest.fn().mockResolvedValue(undefined),
+}))
+
 jest.mock('../src/lib/use-split-layout', () => ({
   useSplitLayout: jest.fn().mockReturnValue(false),
 }))
