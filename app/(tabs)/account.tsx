@@ -8,44 +8,63 @@ import { router } from 'expo-router'
 import { useAuth } from '../../src/lib/auth-context'
 import { signOut } from '../../src/lib/auth'
 import { getPreferences, deleteAccount } from '../../src/lib/user-api'
+import { getSavedAddress, clearSavedAddress, SavedAddress } from '../../src/lib/saved-address'
+import { enableRemindersForAddress, enableRemindersForManualSchedule } from '../../src/lib/enable-reminders'
 import { UserPreferences } from '../../src/lib/types'
 import { colors, spacing, radius } from '../../src/constants/theme'
 import { toTitleCase } from '../../src/lib/formatting'
 
 export default function AccountTab() {
   const { user } = useAuth()
+  const [saved, setSaved] = useState<SavedAddress | null | false>(null) // null=loading, false=none
   const [prefs, setPrefs] = useState<UserPreferences | null>(null)
-  const [loading, setLoading] = useState(true)
+  const [enabling, setEnabling] = useState(false)
 
   useEffect(() => {
-    if (!user) return
-    getPreferences(user.id).then(p => { setPrefs(p); setLoading(false) })
+    getSavedAddress().then(addr => setSaved(addr ?? false))
+  }, [])
+
+  useEffect(() => {
+    if (!user) { setPrefs(null); return }
+    getPreferences(user.id).then(setPrefs)
   }, [user])
 
-  async function handleSignOut() {
+  async function handleRemindersPress() {
+    if (user) { router.push('/notifications'); return }
+    if (!saved) return
+    setEnabling(true)
     try {
-      await signOut()
-      router.replace('/')
+      if (saved.manualSchedules) {
+        await enableRemindersForManualSchedule(saved.manualSchedules)
+      } else {
+        await enableRemindersForAddress(saved.street, saved.city, saved.state, saved.place, saved.events)
+      }
+      router.push('/notifications')
     } catch {
-      Alert.alert('Error', 'Could not sign out. Please try again.')
+      Alert.alert('Error', 'Could not turn on reminders. Please try again.')
+    } finally {
+      setEnabling(false)
     }
   }
 
-  function handleDeleteAccount() {
+  function handleDeleteData() {
     Alert.alert(
-      'Delete account',
-      'This will permanently delete your account and all saved data. This cannot be undone.',
+      'Delete my data',
+      'This will permanently delete your saved address and reminders. This cannot be undone.',
       [
         { text: 'Cancel', style: 'cancel' },
         {
           text: 'Delete', style: 'destructive',
           onPress: async () => {
             try {
-              await deleteAccount()
+              await clearSavedAddress()
+              if (user) {
+                await deleteAccount()
+                await signOut()
+              }
               router.replace('/')
-              signOut().catch(() => {})
             } catch {
-              Alert.alert('Error', 'Could not delete account. Please try again.')
+              Alert.alert('Error', 'Could not delete your data. Please try again.')
             }
           },
         },
@@ -63,66 +82,53 @@ export default function AccountTab() {
   }
 
   function addressSummary(): string {
-    if (!prefs?.street) return 'None saved'
-    return `${toTitleCase(prefs.street)}, ${toTitleCase(prefs.city)}, ${prefs.state.toUpperCase()}`
+    if (!saved) return 'None saved'
+    if (saved.manualSchedules) return 'Manually entered'
+    return `${toTitleCase(saved.street)}, ${toTitleCase(saved.city)}, ${saved.state.toUpperCase()}`
   }
 
-  if (!user) return null
+  if (saved === null) {
+    return (
+      <SafeAreaView style={styles.safe}>
+        <ActivityIndicator color={colors.primary} style={{ marginTop: spacing.lg }} />
+      </SafeAreaView>
+    )
+  }
 
   return (
     <SafeAreaView style={styles.safe}>
       <ScrollView contentContainerStyle={styles.container}>
         <Text style={styles.title}>Account</Text>
 
-        {loading ? (
-          <ActivityIndicator color={colors.primary} style={{ marginVertical: spacing.lg }} />
-        ) : (
-          <>
-            <View style={styles.tilesRow}>
-              <Pressable
-                style={styles.tile}
-                onPress={() => router.push('/notifications')}
-                accessibilityRole="button"
-                accessibilityLabel="Reminders settings"
-              >
-                <Text style={styles.tileIcon}>🔔</Text>
-                <Text style={styles.tileLabel}>Reminders</Text>
-                <Text style={styles.tileSub}>{remindersSummary()}</Text>
-              </Pressable>
+        <View style={styles.tilesRow}>
+          <Pressable
+            style={styles.tile}
+            onPress={handleRemindersPress}
+            disabled={enabling}
+            accessibilityRole="button"
+            accessibilityLabel="Reminders settings"
+          >
+            <Text style={styles.tileIcon}>🔔</Text>
+            <Text style={styles.tileLabel}>Reminders</Text>
+            <Text style={styles.tileSub}>
+              {enabling ? 'Turning on…' : (user ? remindersSummary() : 'Tap to turn on')}
+            </Text>
+          </Pressable>
 
-              <Pressable
-                style={styles.tile}
-                onPress={() => router.push('/(tabs)/search')}
-                accessibilityRole="button"
-                accessibilityLabel="Change saved address"
-              >
-                <Text style={styles.tileIcon}>📍</Text>
-                <Text style={styles.tileLabel}>Address</Text>
-                <Text style={styles.tileSub}>{addressSummary()}</Text>
-              </Pressable>
-            </View>
+          <Pressable
+            style={styles.tile}
+            onPress={() => router.push('/(tabs)/search')}
+            accessibilityRole="button"
+            accessibilityLabel="Change saved address"
+          >
+            <Text style={styles.tileIcon}>📍</Text>
+            <Text style={styles.tileLabel}>Address</Text>
+            <Text style={styles.tileSub}>{addressSummary()}</Text>
+          </Pressable>
+        </View>
 
-            <View style={styles.emailCard}>
-              <Text style={styles.emailLabel}>Signed in as</Text>
-              <Text style={styles.emailText}>{user.email}</Text>
-            </View>
-          </>
-        )}
-
-        <Pressable
-          style={styles.row}
-          onPress={() => router.push('/change-password')}
-          accessibilityRole="button"
-        >
-          <Text style={styles.rowText}>Change password</Text>
-        </Pressable>
-
-        <Pressable style={styles.row} onPress={handleSignOut} accessibilityRole="button">
-          <Text style={styles.rowText}>Sign out</Text>
-        </Pressable>
-
-        <Pressable style={styles.deleteRow} onPress={handleDeleteAccount} accessibilityRole="button">
-          <Text style={styles.deleteText}>Delete account</Text>
+        <Pressable style={styles.deleteRow} onPress={handleDeleteData} accessibilityRole="button">
+          <Text style={styles.deleteText}>Delete my data</Text>
         </Pressable>
       </ScrollView>
     </SafeAreaView>
@@ -146,22 +152,6 @@ const styles = StyleSheet.create({
   tileIcon: { fontSize: 22 },
   tileLabel: { fontSize: 13, fontWeight: '600', color: colors.text },
   tileSub: { fontSize: 11, color: colors.textSecondary },
-  emailCard: {
-    backgroundColor: colors.card,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: radius.md,
-    padding: spacing.md,
-    gap: 4,
-  },
-  emailLabel: { fontSize: 11, color: colors.textSecondary, textTransform: 'uppercase', letterSpacing: 0.8 },
-  emailText: { fontSize: 14, color: colors.text },
-  row: {
-    paddingVertical: spacing.md,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-  },
-  rowText: { fontSize: 16, color: colors.text },
   deleteRow: {
     paddingVertical: spacing.sm,
     alignSelf: 'flex-start',
