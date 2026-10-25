@@ -1,12 +1,9 @@
 import React from 'react'
 import { View, Text, Pressable, StyleSheet, SafeAreaView } from 'react-native'
 import { router } from 'expo-router'
-import { useAuth } from '../src/lib/auth-context'
 import { colors, spacing, radius } from '../src/constants/theme'
 
 export default function AddressNotFoundScreen() {
-  const { user } = useAuth()
-
   return (
     <SafeAreaView style={styles.safe}>
       <View style={styles.container}>
@@ -26,7 +23,7 @@ export default function AddressNotFoundScreen() {
         <Text style={styles.orText}>or</Text>
         <Pressable
           style={styles.secondaryButton}
-          onPress={() => user ? router.push('/manual-entry') : router.push('/sign-in')}
+          onPress={() => router.push('/manual-entry')}
           accessibilityRole="button"
           testID="btn-manual-entry"
         >
@@ -42,7 +39,7 @@ export default function AddressNotFoundScreen() {
           <Text style={styles.secondaryButtonText}>Try a different address</Text>
         </Pressable>
         <Text style={styles.note}>
-          Sign in to save your schedule and get pickup reminders.
+          You can turn on pickup reminders anytime from the Account tab.
         </Text>
       </View>
     </SafeAreaView>
