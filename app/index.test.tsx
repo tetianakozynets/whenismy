@@ -11,6 +11,7 @@ jest.mock('expo-router', () => ({
     const { Text } = require('react-native')
     return <Text testID="redirect">{href}</Text>
   },
+  useFocusEffect: (cb: () => void) => { cb() },
 }))
 
 jest.mock('../src/lib/saved-address', () => ({

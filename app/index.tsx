@@ -1,8 +1,8 @@
-import React, { useEffect, useState } from 'react'
+import React, { useCallback, useState } from 'react'
 import {
   View, Text, SafeAreaView, StyleSheet, Alert,
 } from 'react-native'
-import { router, Redirect } from 'expo-router'
+import { router, Redirect, useFocusEffect } from 'expo-router'
 import { AddressForm } from '../src/components/AddressForm'
 import { WimLogo } from '../src/components/WimLogo'
 import { AddressMatchPicker } from '../src/components/AddressMatchPicker'
@@ -28,12 +28,14 @@ export default function HomeScreen() {
   const [checkingSaved, setCheckingSaved] = useState(true)
   const [hasSavedAddress, setHasSavedAddress] = useState(false)
 
-  useEffect(() => {
-    getSavedAddress().then(saved => {
-      setHasSavedAddress(!!saved)
-      setCheckingSaved(false)
-    })
-  }, [])
+  useFocusEffect(
+    useCallback(() => {
+      getSavedAddress()
+        .then(saved => setHasSavedAddress(!!saved))
+        .catch(() => setHasSavedAddress(false))
+        .finally(() => setCheckingSaved(false))
+    }, [])
+  )
 
   if (checkingSaved) return null
   if (hasSavedAddress) return <Redirect href="/(tabs)/schedule" />
