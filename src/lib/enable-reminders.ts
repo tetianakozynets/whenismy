@@ -12,8 +12,10 @@ export async function enableRemindersForAddress(
   events: PickupEvent[]
 ): Promise<void> {
   const userId = await ensureAnonymousUser()
-  await saveAddress(userId, street, city, state, place)
-  await savePickupEvents(userId, events)
+  const { error: addressError } = await saveAddress(userId, street, city, state, place)
+  if (addressError) throw addressError
+  const { error: eventsError } = await savePickupEvents(userId, events)
+  if (eventsError) throw eventsError
   await registerPushToken(userId)
 }
 
@@ -21,6 +23,7 @@ export async function enableRemindersForManualSchedule(
   schedules: ManualScheduleInput[]
 ): Promise<void> {
   const userId = await ensureAnonymousUser()
-  await saveManualSchedules(userId, schedules)
+  const { error } = await saveManualSchedules(userId, schedules)
+  if (error) throw error
   await registerPushToken(userId)
 }

@@ -6,8 +6,13 @@ import { enableRemindersForAddress, enableRemindersForManualSchedule } from './e
 import { PlaceInfo, PickupEvent, ManualScheduleInput } from './types'
 
 jest.mock('./auth', () => ({ ensureAnonymousUser: jest.fn() }))
-jest.mock('./user-api', () => ({ saveAddress: jest.fn(), savePickupEvents: jest.fn() }))
-jest.mock('./manual-schedule', () => ({ saveManualSchedules: jest.fn() }))
+jest.mock('./user-api', () => ({
+  saveAddress: jest.fn().mockResolvedValue({ error: null }),
+  savePickupEvents: jest.fn().mockResolvedValue({ error: null }),
+}))
+jest.mock('./manual-schedule', () => ({
+  saveManualSchedules: jest.fn().mockResolvedValue({ error: null }),
+}))
 jest.mock('./push-notifications', () => ({ registerPushToken: jest.fn() }))
 
 const place: PlaceInfo = {
@@ -50,4 +55,22 @@ it('propagates errors from ensureAnonymousUser without saving anything', async (
     enableRemindersForAddress('1 Main St', 'Mahwah', 'NJ', place, events)
   ).rejects.toThrow('network error')
   expect(saveAddress).not.toHaveBeenCalled()
+})
+
+it('enableRemindersForAddress throws when saveAddress returns an error', async () => {
+  ;(saveAddress as jest.Mock).mockResolvedValueOnce({ error: { message: 'constraint violation' } })
+  await expect(
+    enableRemindersForAddress('1 Main St', 'Mahwah', 'NJ', place, events)
+  ).rejects.toEqual({ message: 'constraint violation' })
+  expect(savePickupEvents).not.toHaveBeenCalled()
+  expect(registerPushToken).not.toHaveBeenCalled()
+})
+
+it('enableRemindersForManualSchedule throws when saveManualSchedules returns an error', async () => {
+  const schedules: ManualScheduleInput[] = [
+    { event_type: 'garbage', pickup_day: 'monday', frequency: 'weekly', anchor_date: null },
+  ]
+  ;(saveManualSchedules as jest.Mock).mockResolvedValueOnce({ error: { message: 'constraint violation' } })
+  await expect(enableRemindersForManualSchedule(schedules)).rejects.toEqual({ message: 'constraint violation' })
+  expect(registerPushToken).not.toHaveBeenCalled()
 })
