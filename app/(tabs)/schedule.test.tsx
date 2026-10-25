@@ -2,28 +2,17 @@ import React from 'react'
 import { ActivityIndicator } from 'react-native'
 import { render, fireEvent, waitFor, act } from '@testing-library/react-native'
 import ScheduleTab from './schedule'
-import * as userApi from '../../src/lib/user-api'
+import { getSavedAddress, isStale, saveAddressLocally } from '../../src/lib/saved-address'
 import * as api from '../../src/lib/api'
-
-// ---------------------------------------------------------------------------
-// Module mocks
-// ---------------------------------------------------------------------------
 
 jest.mock('expo-router', () => ({
   router: { push: jest.fn(), back: jest.fn(), replace: jest.fn() },
 }))
 
-// Default: user is signed in. Individual tests may override via
-// jest.mock / module re-require or by changing the return value.
-let mockUser: { id: string; email: string } | null = { id: 'u1', email: 'test@test.com' }
-
-jest.mock('../../src/lib/auth-context', () => ({
-  useAuth: () => ({ user: mockUser, session: {}, loading: false }),
-}))
-
-jest.mock('../../src/lib/user-api', () => ({
-  getPreferences: jest.fn(),
-  getManualPickupEvents: jest.fn(),
+jest.mock('../../src/lib/saved-address', () => ({
+  getSavedAddress: jest.fn(),
+  isStale: jest.fn(),
+  saveAddressLocally: jest.fn().mockResolvedValue(undefined),
 }))
 
 jest.mock('../../src/lib/api', () => ({
@@ -49,207 +38,143 @@ jest.mock('../../src/components/ScheduleContent', () => ({
   },
 }))
 
-// ---------------------------------------------------------------------------
-// Shared fixtures
-// ---------------------------------------------------------------------------
-
-const mockPrefs = {
-  user_id: 'u1',
-  street: '123 main st',
-  city: 'springfield',
-  state: 'ny',
+const basePlace = {
+  address_key: '123 main st|springfield|ny',
   recollect_place_id: 'place-1',
   latitude: 40.7,
   longitude: -74.0,
   timezone: 'America/New_York',
-  notification_time: '20:00',
-  notifications_garbage: true,
-  notifications_recycling: false,
-  notifications_yard_waste: false,
   supported_event_types: ['garbage'],
+  provider: 'recollect' as const,
 }
 
-const mockResult = {
-  place: {
-    address_key: '123 main st|springfield|ny',
-    recollect_place_id: 'place-1',
-    latitude: 40.7,
-    longitude: -74.0,
-    timezone: 'America/New_York',
-    supported_event_types: ['garbage'],
-    provider: 'recollect' as const,
-  },
-  events: [{ date: '2026-05-10', event_type: 'garbage' }],
+const baseEvents = [{ date: '2026-05-10', event_type: 'garbage' }]
+
+const freshSaved = {
+  street: '123 main st', city: 'springfield', state: 'ny',
+  place: basePlace, events: baseEvents, savedAt: '2026-05-01T00:00:00.000Z',
 }
 
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-
-const getPreferencesMock = userApi.getPreferences as jest.Mock
-const getManualPickupEventsMock = userApi.getManualPickupEvents as jest.Mock
+const getSavedAddressMock = getSavedAddress as jest.Mock
+const isStaleMock = isStale as jest.Mock
 const lookupScheduleMock = api.lookupSchedule as jest.Mock
 const isErrorMock = api.isError as jest.Mock
-
-// ---------------------------------------------------------------------------
-// Tests
-// ---------------------------------------------------------------------------
 
 beforeEach(() => {
   jest.clearAllMocks()
   isErrorMock.mockReturnValue(false)
-  getManualPickupEventsMock.mockResolvedValue([])
-  mockUser = { id: 'u1', email: 'test@test.com' }
+  isStaleMock.mockReturnValue(false)
 })
 
-// 1. Returns null when user is null
-it('renders nothing when user is not authenticated', () => {
-  mockUser = null
-  // getPreferences should never be called when user is null
-  getPreferencesMock.mockResolvedValue(null)
-
-  const { toJSON } = render(<ScheduleTab />)
-  expect(toJSON()).toBeNull()
-})
-
-// 2. Shows ActivityIndicator while prefs are loading
-it('shows ActivityIndicator immediately after mount while data is loading', async () => {
-  // Never resolves during this test — keeps prefs in null (loading) state
-  getPreferencesMock.mockReturnValue(new Promise(() => {}))
-
+// 1. Shows ActivityIndicator while the saved address is loading
+it('shows ActivityIndicator immediately after mount while data is loading', () => {
+  getSavedAddressMock.mockReturnValue(new Promise(() => {})) // never resolves
   const { UNSAFE_getByType } = render(<ScheduleTab />)
-
-  // ActivityIndicator is the only indicator element rendered in the loading state
   expect(UNSAFE_getByType(ActivityIndicator)).toBeTruthy()
 })
 
-// 3. Shows "No address saved yet" when getPreferences returns null
-it('shows no-address state when getPreferences returns null', async () => {
-  getPreferencesMock.mockResolvedValue(null)
-
+// 2. Shows "No address saved yet" when getSavedAddress returns null
+it('shows no-address state when getSavedAddress returns null', async () => {
+  getSavedAddressMock.mockResolvedValue(null)
   const { getByText } = render(<ScheduleTab />)
-
-  await waitFor(() => {
-    expect(getByText('No address saved yet')).toBeTruthy()
-  })
+  await waitFor(() => expect(getByText('No address saved yet')).toBeTruthy())
   expect(getByText('Go to Search →')).toBeTruthy()
 })
 
-// 4. Pressing "Go to Search →" navigates to /(tabs)/search
+// 3. Pressing "Go to Search →" navigates to /(tabs)/search
 it('navigates to /(tabs)/search when "Go to Search →" is pressed', async () => {
-  getPreferencesMock.mockResolvedValue(null)
-
+  getSavedAddressMock.mockResolvedValue(null)
   const { getByText } = render(<ScheduleTab />)
-
-  await waitFor(() => {
-    expect(getByText('Go to Search →')).toBeTruthy()
-  })
-
+  await waitFor(() => expect(getByText('Go to Search →')).toBeTruthy())
   fireEvent.press(getByText('Go to Search →'))
-
   const { router } = require('expo-router')
   expect(router.push).toHaveBeenCalledWith('/(tabs)/search')
 })
 
-// 5. Shows "Couldn't load schedule" when lookupSchedule returns an error
-it('shows error state when lookupSchedule returns an error', async () => {
-  getPreferencesMock.mockResolvedValue(mockPrefs)
+// 4. Renders directly from the local record without calling lookupSchedule when fresh
+it('renders ScheduleContent from the local record without calling lookupSchedule when fresh', async () => {
+  getSavedAddressMock.mockResolvedValue(freshSaved)
+  isStaleMock.mockReturnValue(false)
+  const { getByTestId } = render(<ScheduleTab />)
+  await waitFor(() => expect(getByTestId('schedule-content')).toBeTruthy())
+  expect(lookupScheduleMock).not.toHaveBeenCalled()
+})
+
+// 5. Refreshes from lookupSchedule and re-saves locally when the saved record is stale
+it('calls lookupSchedule and re-saves locally when the saved record is stale', async () => {
+  getSavedAddressMock.mockResolvedValue(freshSaved)
+  isStaleMock.mockReturnValue(true)
+  lookupScheduleMock.mockResolvedValue({ place: basePlace, events: baseEvents })
+  const { getByTestId } = render(<ScheduleTab />)
+  await waitFor(() => expect(getByTestId('schedule-content')).toBeTruthy())
+  expect(lookupScheduleMock).toHaveBeenCalledWith('123 main st', 'springfield', 'ny')
+  expect(saveAddressLocally).toHaveBeenCalledWith({
+    street: '123 main st', city: 'springfield', state: 'ny',
+    place: basePlace, events: baseEvents,
+  })
+})
+
+// 6. Shows "Couldn't load schedule" when the stale refresh errors
+it('shows error state when the stale refresh returns an error', async () => {
+  getSavedAddressMock.mockResolvedValue(freshSaved)
+  isStaleMock.mockReturnValue(true)
   lookupScheduleMock.mockResolvedValue({ error: 'Service unavailable' })
   isErrorMock.mockReturnValue(true)
-
   const { getByText } = render(<ScheduleTab />)
-
-  await waitFor(() => {
-    expect(getByText("Couldn't load schedule")).toBeTruthy()
-  })
+  await waitFor(() => expect(getByText("Couldn't load schedule")).toBeTruthy())
   expect(getByText('Service unavailable')).toBeTruthy()
 })
 
-// 6. Pressing "Try again" re-triggers load()
+// 7. Pressing "Try again" re-triggers load()
 it('re-triggers load when "Try again" is pressed', async () => {
-  getPreferencesMock.mockResolvedValue(mockPrefs)
+  getSavedAddressMock.mockResolvedValue(freshSaved)
+  isStaleMock.mockReturnValue(true)
   lookupScheduleMock.mockResolvedValue({ error: 'Service unavailable' })
   isErrorMock.mockReturnValue(true)
 
   const { getByText } = render(<ScheduleTab />)
+  await waitFor(() => expect(getByText('Try again')).toBeTruthy())
 
-  await waitFor(() => {
-    expect(getByText('Try again')).toBeTruthy()
-  })
-
-  // Reset mocks to a success path so the second call renders ScheduleContent
-  getPreferencesMock.mockResolvedValue(mockPrefs)
-  lookupScheduleMock.mockResolvedValue(mockResult)
+  lookupScheduleMock.mockResolvedValue({ place: basePlace, events: baseEvents })
   isErrorMock.mockReturnValue(false)
 
   await act(async () => {
     fireEvent.press(getByText('Try again'))
   })
 
-  // load() calls getPreferences and lookupSchedule — each should now be called twice
-  expect(getPreferencesMock).toHaveBeenCalledTimes(2)
+  expect(getSavedAddressMock).toHaveBeenCalledTimes(2)
   expect(lookupScheduleMock).toHaveBeenCalledTimes(2)
 })
 
-// 7. Renders ScheduleContent when prefs + result load successfully
-it('renders ScheduleContent when prefs and result load successfully', async () => {
-  getPreferencesMock.mockResolvedValue(mockPrefs)
-  lookupScheduleMock.mockResolvedValue(mockResult)
-  isErrorMock.mockReturnValue(false)
-
-  const { getByTestId } = render(<ScheduleTab />)
-
-  await waitFor(() => {
-    expect(getByTestId('schedule-content')).toBeTruthy()
-  })
-})
-
-// 8. ScheduleContent receives showBack={false} — back link NOT present
+// 8. ScheduleContent receives showBack={false}
 it('does not render back link (showBack is false)', async () => {
-  getPreferencesMock.mockResolvedValue(mockPrefs)
-  lookupScheduleMock.mockResolvedValue(mockResult)
-  isErrorMock.mockReturnValue(false)
-
-  const { queryByTestId } = render(<ScheduleTab />)
-
-  await waitFor(() => {
-    expect(queryByTestId('schedule-content')).toBeTruthy()
-  })
-
+  getSavedAddressMock.mockResolvedValue(freshSaved)
+  const { queryByTestId, getByTestId } = render(<ScheduleTab />)
+  await waitFor(() => expect(getByTestId('schedule-content')).toBeTruthy())
   expect(queryByTestId('back-link')).toBeNull()
 })
 
-// 9b. Falls back to manual pickup events when no prefs but manual events exist
-it('shows ScheduleContent with manual events when no address saved but manual events exist', async () => {
-  getPreferencesMock.mockResolvedValue(null)
-  getManualPickupEventsMock.mockResolvedValue([
-    { date: '2026-06-02', event_type: 'garbage' },
-    { date: '2026-06-09', event_type: 'garbage' },
-  ])
-
-  const { getByTestId, queryByText } = render(<ScheduleTab />)
-
-  await waitFor(() => {
-    expect(getByTestId('schedule-content')).toBeTruthy()
+// 9. Manually-entered schedules render directly, with no address label, no refresh
+it('renders manual schedule events directly, with no address label', async () => {
+  getSavedAddressMock.mockResolvedValue({
+    street: 'manual', city: '', state: '',
+    place: { ...basePlace, address_key: 'manual||', provider: null },
+    events: [{ date: '2026-06-02', event_type: 'garbage' }],
+    manualSchedules: [{ event_type: 'garbage' as const, pickup_day: 'monday' as const, frequency: 'weekly' as const, anchor_date: null }],
+    savedAt: '2026-06-01T00:00:00.000Z',
   })
-  expect(queryByText('No address saved yet')).toBeNull()
+  const { getByTestId } = render(<ScheduleTab />)
+  await waitFor(() => expect(getByTestId('schedule-content')).toBeTruthy())
+  expect(getByTestId('schedule-content').props.children).toBeUndefined()
+  expect(lookupScheduleMock).not.toHaveBeenCalled()
 })
 
-// 9. ScheduleContent receives savedAddress matching prefs street/city/state
+// 10. ScheduleContent receives savedAddress matching the saved record's street/city/state
 it('passes savedAddress with correct street, city, state to ScheduleContent', async () => {
-  getPreferencesMock.mockResolvedValue(mockPrefs)
-  lookupScheduleMock.mockResolvedValue(mockResult)
-  isErrorMock.mockReturnValue(false)
-
+  getSavedAddressMock.mockResolvedValue(freshSaved)
   const { getByTestId } = render(<ScheduleTab />)
-
-  await waitFor(() => {
-    expect(getByTestId('saved-address')).toBeTruthy()
-  })
-
-  // React renders JSX template expressions as an array of children nodes;
-  // flatten them into a single string before comparing.
+  await waitFor(() => expect(getByTestId('saved-address')).toBeTruthy())
   const children = getByTestId('saved-address').props.children
   const text = Array.isArray(children) ? children.join('') : children
-  expect(text).toBe(`${mockPrefs.street}|${mockPrefs.city}|${mockPrefs.state}`)
+  expect(text).toBe('123 main st|springfield|ny')
 })

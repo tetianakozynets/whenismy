@@ -1,8 +1,8 @@
-import React, { useState } from 'react'
+import React, { useCallback, useState } from 'react'
 import {
-  View, Text, SafeAreaView, StyleSheet, Alert, Pressable, Platform,
+  View, Text, SafeAreaView, StyleSheet, Alert,
 } from 'react-native'
-import { router, Redirect } from 'expo-router'
+import { router, Redirect, useFocusEffect } from 'expo-router'
 import { AddressForm } from '../src/components/AddressForm'
 import { WimLogo } from '../src/components/WimLogo'
 import { AddressMatchPicker } from '../src/components/AddressMatchPicker'
@@ -10,11 +10,11 @@ import { SplitLayout } from '../src/components/SplitLayout'
 import { SchedulePanel } from '../src/components/SchedulePanel'
 import { lookupSchedule, isError } from '../src/lib/api'
 import { scheduleStore } from '../src/lib/schedule-store'
+import { getSavedAddress } from '../src/lib/saved-address'
 import { useSplitLayout } from '../src/lib/use-split-layout'
 import { PlaceMatch, LookupResponse } from '../src/lib/types'
 import { toTitleCase } from '../src/lib/formatting'
 import { colors, spacing } from '../src/constants/theme'
-import { useAuth } from '../src/lib/auth-context'
 
 export default function HomeScreen() {
   const [loading, setLoading] = useState(false)
@@ -25,8 +25,20 @@ export default function HomeScreen() {
   const [serviceUnavailable, setServiceUnavailable] = useState(false)
   const [resetKey, setResetKey] = useState(0)
   const isSplit = useSplitLayout()
-  const { user } = useAuth()
-  if (user) return <Redirect href="/(tabs)/schedule" />
+  const [checkingSaved, setCheckingSaved] = useState(true)
+  const [hasSavedAddress, setHasSavedAddress] = useState(false)
+
+  useFocusEffect(
+    useCallback(() => {
+      getSavedAddress()
+        .then(saved => setHasSavedAddress(!!saved))
+        .catch(() => setHasSavedAddress(false))
+        .finally(() => setCheckingSaved(false))
+    }, [])
+  )
+
+  if (checkingSaved) return null
+  if (hasSavedAddress) return <Redirect href="/(tabs)/schedule" />
 
   async function handleLookup(street: string, city: string, state: string) {
     setLoading(true)
@@ -136,18 +148,6 @@ export default function HomeScreen() {
     <SafeAreaView style={styles.safe}>
       <View style={styles.container}>
         {formContent}
-        {Platform.OS !== 'web' && (
-          <Pressable
-            style={styles.signInRow}
-            onPress={() => router.push({ pathname: '/sign-in', params: { mode: 'signin' } })}
-            accessibilityRole="button"
-            testID="btn-sign-in"
-          >
-            <Text style={styles.signInText}>
-              Have an account? <Text style={styles.signInLink}>Sign in →</Text>
-            </Text>
-          </Pressable>
-        )}
       </View>
       {matches && (
         <AddressMatchPicker
@@ -196,17 +196,5 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: colors.textSecondary,
     lineHeight: 20,
-  },
-  signInRow: {
-    alignItems: 'center',
-    paddingVertical: spacing.sm,
-  },
-  signInText: {
-    fontSize: 14,
-    color: colors.textSecondary,
-  },
-  signInLink: {
-    color: colors.primary,
-    fontWeight: '600',
   },
 })

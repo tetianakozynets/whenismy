@@ -1,12 +1,12 @@
 import React, { useState } from 'react'
-import { View, Text, Pressable, StyleSheet, ActivityIndicator } from 'react-native'
+import { View, Text, Pressable, StyleSheet, ActivityIndicator, Alert } from 'react-native'
 import { router } from 'expo-router'
 import { PlaceInfo, PickupEvent } from '../lib/types'
-import { saveAddress, savePickupEvents } from '../lib/user-api'
+import { saveAddressLocally } from '../lib/saved-address'
+import { enableRemindersForAddress } from '../lib/enable-reminders'
 import { colors, spacing, radius } from '../constants/theme'
 
 interface Props {
-  userId: string
   street: string
   city: string
   state: string
@@ -15,21 +15,37 @@ interface Props {
   isSaved: boolean
 }
 
-export function SaveAddressBanner({ userId, street, city, state, place, events, isSaved }: Props) {
+export function SaveAddressBanner({ street, city, state, place, events, isSaved }: Props) {
   const [saved, setSaved] = useState(false)
   const [saving, setSaving] = useState(false)
+  const [enabling, setEnabling] = useState(false)
   const [saveError, setSaveError] = useState<string | null>(null)
 
   if (isSaved) return null
+
+  async function handleSetUpReminders() {
+    setEnabling(true)
+    try {
+      await enableRemindersForAddress(street, city, state, place, events)
+      router.push('/notifications')
+    } catch {
+      Alert.alert('Error', 'Could not turn on reminders. Please try again.')
+    } finally {
+      setEnabling(false)
+    }
+  }
 
   if (saved) {
     return (
       <Pressable
         style={[styles.banner, styles.bannerSaved]}
-        onPress={() => router.push('/notifications')}
+        onPress={handleSetUpReminders}
+        disabled={enabling}
         accessibilityRole="button"
       >
-        <Text style={styles.savedText}>✓ Address saved — set up reminders →</Text>
+        <Text style={styles.savedText}>
+          {enabling ? 'Turning on reminders…' : '✓ Address saved — set up reminders →'}
+        </Text>
       </Pressable>
     )
   }
@@ -38,8 +54,7 @@ export function SaveAddressBanner({ userId, street, city, state, place, events, 
     setSaving(true)
     setSaveError(null)
     try {
-      await saveAddress(userId, street, city, state, place)
-      await savePickupEvents(userId, events)
+      await saveAddressLocally({ street, city, state, place, events })
       setSaved(true)
     } catch {
       setSaveError('Could not save. Please try again.')

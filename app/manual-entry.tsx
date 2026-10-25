@@ -4,9 +4,8 @@ import {
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { router } from 'expo-router'
-import { useAuth } from '../src/lib/auth-context'
-import { saveManualSchedules, generateEventsFromManual } from '../src/lib/manual-schedule'
-import { scheduleStore } from '../src/lib/schedule-store'
+import { generateEventsFromManual } from '../src/lib/manual-schedule'
+import { saveAddressLocally } from '../src/lib/saved-address'
 import { ManualScheduleInput } from '../src/lib/types'
 import { colors, spacing, radius } from '../src/constants/theme'
 
@@ -35,7 +34,6 @@ const defaultState = (): TypeState => ({
 })
 
 export default function ManualEntryScreen() {
-  const { user } = useAuth()
   const [saving, setSaving] = useState(false)
   const [state, setState] = useState<Record<string, TypeState>>({
     garbage: defaultState(),
@@ -48,7 +46,6 @@ export default function ManualEntryScreen() {
   }
 
   async function handleSave() {
-    if (!user) { router.push('/sign-in'); return }
     const schedules: ManualScheduleInput[] = EVENT_TYPES
       .filter(t => state[t.key].enabled)
       .map(t => ({
@@ -62,24 +59,24 @@ export default function ManualEntryScreen() {
 
     setSaving(true)
     try {
-      await saveManualSchedules(user.id, schedules)
       const events = schedules.flatMap(s => generateEventsFromManual(s))
       events.sort((a, b) => a.date.localeCompare(b.date))
-      scheduleStore.set(
-        {
-          place: {
-            address_key: 'manual||',
-            recollect_place_id: null,
-            latitude: null,
-            longitude: null,
-            timezone: null,
-            supported_event_types: schedules.map(s => s.event_type),
-            provider: null,
-          },
-          events,
+      await saveAddressLocally({
+        street: 'manual',
+        city: '',
+        state: '',
+        place: {
+          address_key: 'manual||',
+          recollect_place_id: null,
+          latitude: null,
+          longitude: null,
+          timezone: null,
+          supported_event_types: schedules.map(s => s.event_type),
+          provider: null,
         },
-        '', '', ''
-      )
+        events,
+        manualSchedules: schedules,
+      })
       router.replace('/(tabs)/schedule')
     } catch {
       Alert.alert('Error', 'Could not save your schedule. Please try again.')

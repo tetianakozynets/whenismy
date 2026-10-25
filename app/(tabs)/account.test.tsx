@@ -4,11 +4,9 @@ import { Alert, ActivityIndicator } from 'react-native'
 import AccountTab from './account'
 import * as userApi from '../../src/lib/user-api'
 import * as auth from '../../src/lib/auth'
+import * as savedAddress from '../../src/lib/saved-address'
+import * as enableReminders from '../../src/lib/enable-reminders'
 import { UserPreferences } from '../../src/lib/types'
-
-// ---------------------------------------------------------------------------
-// Module mocks
-// ---------------------------------------------------------------------------
 
 jest.mock('expo-router', () => ({
   router: { push: jest.fn(), replace: jest.fn(), back: jest.fn() },
@@ -28,13 +26,36 @@ jest.mock('../../src/lib/user-api', () => ({
   deleteAccount: jest.fn(),
 }))
 
-// ---------------------------------------------------------------------------
-// Shared test fixtures
-// ---------------------------------------------------------------------------
+jest.mock('../../src/lib/saved-address', () => ({
+  getSavedAddress: jest.fn(),
+  clearSavedAddress: jest.fn(),
+}))
 
-const mockUser = {
-  id: 'user-123',
-  email: 'test@example.com',
+jest.mock('../../src/lib/enable-reminders', () => ({
+  enableRemindersForAddress: jest.fn(),
+  enableRemindersForManualSchedule: jest.fn(),
+}))
+
+const noAccount = { user: null, session: null, loading: false }
+const withAccount = { user: { id: 'user-123' }, session: {}, loading: false }
+
+const savedRecord = {
+  street: '123 Main St', city: 'Springfield', state: 'NY',
+  place: {
+    address_key: '123 main st|springfield|ny', recollect_place_id: 'p1',
+    latitude: 40.7, longitude: -74.0, timezone: 'America/New_York',
+    supported_event_types: ['garbage'], provider: 'recollect' as const,
+  },
+  events: [{ date: '2026-06-01', event_type: 'garbage' }],
+  savedAt: '2026-06-01T00:00:00.000Z',
+}
+
+const manualSavedRecord = {
+  ...savedRecord,
+  street: 'manual', city: '', state: '',
+  manualSchedules: [
+    { event_type: 'garbage' as const, pickup_day: 'monday' as const, frequency: 'weekly' as const, anchor_date: null },
+  ],
 }
 
 const basePrefs: UserPreferences = {
@@ -53,10 +74,6 @@ const basePrefs: UserPreferences = {
   supported_event_types: [],
 }
 
-// ---------------------------------------------------------------------------
-// Setup / teardown
-// ---------------------------------------------------------------------------
-
 let alertSpy: jest.SpyInstance
 
 beforeEach(() => {
@@ -68,142 +85,126 @@ afterEach(() => {
   alertSpy.mockRestore()
 })
 
-// ---------------------------------------------------------------------------
-// Helper: render with a logged-in user and wait for prefs to settle
-// ---------------------------------------------------------------------------
-
-async function renderLoaded(prefs: UserPreferences | null = null) {
-  mockUseAuth.mockReturnValue({ user: mockUser, session: null, loading: false })
-  ;(userApi.getPreferences as jest.Mock).mockResolvedValue(prefs)
+async function renderLoaded(opts: {
+  auth?: typeof noAccount | typeof withAccount
+  saved?: typeof savedRecord | null
+  prefs?: UserPreferences | null
+} = {}) {
+  mockUseAuth.mockReturnValue(opts.auth ?? noAccount)
+  const saved = 'saved' in opts ? opts.saved : savedRecord
+  ;(savedAddress.getSavedAddress as jest.Mock).mockResolvedValue(saved)
+  ;(userApi.getPreferences as jest.Mock).mockResolvedValue(opts.prefs ?? basePrefs)
 
   const utils = render(<AccountTab />)
-  // Wait for the ActivityIndicator to disappear once the prefs promise settles
   await waitFor(() => {
     expect(utils.UNSAFE_queryAllByType(ActivityIndicator)).toHaveLength(0)
   })
   return utils
 }
 
-// ---------------------------------------------------------------------------
-// Tests
-// ---------------------------------------------------------------------------
-
 describe('AccountTab', () => {
-  // 1. Renders nothing when user is null
-  it('renders nothing when user is null (not signed in)', () => {
-    mockUseAuth.mockReturnValue({ user: null, session: null, loading: false })
-    const { toJSON } = render(<AccountTab />)
-    expect(toJSON()).toBeNull()
-  })
-
-  // 2. Shows loading spinner while prefs are loading
-  it('shows activity indicator while preferences are loading', async () => {
-    mockUseAuth.mockReturnValue({ user: mockUser, session: null, loading: false })
-
-    // Never resolves during this test so loading stays true
-    ;(userApi.getPreferences as jest.Mock).mockReturnValue(new Promise(() => {}))
-
+  it('shows an activity indicator while the saved address is loading', () => {
+    mockUseAuth.mockReturnValue(noAccount)
+    ;(savedAddress.getSavedAddress as jest.Mock).mockReturnValue(new Promise(() => {}))
     const { UNSAFE_getByType } = render(<AccountTab />)
-    // ActivityIndicator does not expose a progressbar role in the test renderer;
-    // querying by component type is the reliable alternative.
     expect(UNSAFE_getByType(ActivityIndicator)).toBeTruthy()
   })
 
-  // 3. Renders user email after prefs load
-  it('renders the signed-in user email after prefs load', async () => {
-    const { getByText } = await renderLoaded()
-    expect(getByText('test@example.com')).toBeTruthy()
-  })
-
-  // 4. remindersSummary shows 'Off' when all notifications are false
-  it('shows "Off" for reminders when all notifications are disabled', async () => {
-    const prefs = { ...basePrefs, notifications_garbage: false, notifications_recycling: false, notifications_yard_waste: false }
-    const { getByText } = await renderLoaded(prefs)
-    expect(getByText('Off')).toBeTruthy()
-  })
-
-  // 5. remindersSummary shows correct active types
-  it('shows active notification types joined with " · "', async () => {
-    const prefs = { ...basePrefs, notifications_garbage: true, notifications_recycling: true, notifications_yard_waste: false }
-    const { getByText } = await renderLoaded(prefs)
-    expect(getByText('Garbage · Recycling')).toBeTruthy()
-  })
-
-  it('shows all three active notification types', async () => {
-    const prefs = { ...basePrefs, notifications_garbage: true, notifications_recycling: true, notifications_yard_waste: true }
-    const { getByText } = await renderLoaded(prefs)
-    expect(getByText('Garbage · Recycling · Yard Waste')).toBeTruthy()
-  })
-
-  // 6. addressSummary shows 'None saved' when no prefs
-  it('shows "None saved" for address when prefs is null', async () => {
-    const { getByText } = await renderLoaded(null)
+  it('shows "None saved" for address when nothing is saved locally', async () => {
+    const { getByText } = await renderLoaded({ saved: null })
     expect(getByText('None saved')).toBeTruthy()
   })
 
-  // 7. addressSummary shows 'Street, City, STATE' when prefs exist
-  it('shows "Street, City, STATE" when prefs contain an address', async () => {
-    const { getByText } = await renderLoaded(basePrefs)
+  it('shows the formatted address when one is saved locally', async () => {
+    const { getByText } = await renderLoaded()
     expect(getByText('123 Main St, Springfield, NY')).toBeTruthy()
   })
 
-  // 8. Pressing "Reminders settings" tile navigates to /notifications
-  it('navigates to /notifications when Reminders tile is pressed', async () => {
-    const { getByLabelText } = await renderLoaded(basePrefs)
+  it('shows "Manually entered" for a manual saved address', async () => {
+    const { getByText } = await renderLoaded({ saved: manualSavedRecord })
+    expect(getByText('Manually entered')).toBeTruthy()
+  })
+
+  it('shows "Tap to turn on" for reminders when there is no account', async () => {
+    const { getByText } = await renderLoaded({ auth: noAccount })
+    expect(getByText('Tap to turn on')).toBeTruthy()
+  })
+
+  it('shows "Off" for reminders when an account exists but all notifications are disabled', async () => {
+    const { getByText } = await renderLoaded({ auth: withAccount, prefs: basePrefs })
+    expect(getByText('Off')).toBeTruthy()
+  })
+
+  it('shows active notification types joined with " · " when an account exists', async () => {
+    const prefs = { ...basePrefs, notifications_garbage: true, notifications_recycling: true }
+    const { getByText } = await renderLoaded({ auth: withAccount, prefs })
+    expect(getByText('Garbage · Recycling')).toBeTruthy()
+  })
+
+  it('navigates straight to /notifications when an account already exists', async () => {
+    const { getByLabelText } = await renderLoaded({ auth: withAccount })
     fireEvent.press(getByLabelText('Reminders settings'))
+    const { router } = require('expo-router')
+    expect(router.push).toHaveBeenCalledWith('/notifications')
+    expect(enableReminders.enableRemindersForAddress).not.toHaveBeenCalled()
+  })
+
+  it('turns on reminders for a regular address then navigates to /notifications', async () => {
+    ;(enableReminders.enableRemindersForAddress as jest.Mock).mockResolvedValue(undefined)
+    const { getByLabelText } = await renderLoaded({ auth: noAccount, saved: savedRecord })
+
+    await act(async () => {
+      fireEvent.press(getByLabelText('Reminders settings'))
+    })
+
+    expect(enableReminders.enableRemindersForAddress).toHaveBeenCalledWith(
+      '123 Main St', 'Springfield', 'NY', savedRecord.place, savedRecord.events
+    )
     const { router } = require('expo-router')
     expect(router.push).toHaveBeenCalledWith('/notifications')
   })
 
-  // 9. Pressing "Change saved address" tile navigates to /(tabs)/search
+  it('turns on reminders for a manual schedule then navigates to /notifications', async () => {
+    ;(enableReminders.enableRemindersForManualSchedule as jest.Mock).mockResolvedValue(undefined)
+    const { getByLabelText } = await renderLoaded({ auth: noAccount, saved: manualSavedRecord })
+
+    await act(async () => {
+      fireEvent.press(getByLabelText('Reminders settings'))
+    })
+
+    expect(enableReminders.enableRemindersForManualSchedule).toHaveBeenCalledWith(
+      manualSavedRecord.manualSchedules
+    )
+    const { router } = require('expo-router')
+    expect(router.push).toHaveBeenCalledWith('/notifications')
+  })
+
+  it('shows an error alert when turning on reminders fails', async () => {
+    ;(enableReminders.enableRemindersForAddress as jest.Mock).mockRejectedValue(new Error('network error'))
+    const { getByLabelText } = await renderLoaded({ auth: noAccount, saved: savedRecord })
+
+    await act(async () => {
+      fireEvent.press(getByLabelText('Reminders settings'))
+    })
+
+    expect(alertSpy).toHaveBeenCalledWith('Error', 'Could not turn on reminders. Please try again.')
+    const { router } = require('expo-router')
+    expect(router.push).not.toHaveBeenCalledWith('/notifications')
+  })
+
   it('navigates to /(tabs)/search when Address tile is pressed', async () => {
-    const { getByLabelText } = await renderLoaded(basePrefs)
+    const { getByLabelText } = await renderLoaded()
     fireEvent.press(getByLabelText('Change saved address'))
     const { router } = require('expo-router')
     expect(router.push).toHaveBeenCalledWith('/(tabs)/search')
   })
 
-  it('navigates to /change-password when Change password is pressed', async () => {
-    const { getByText } = await renderLoaded(basePrefs)
-    fireEvent.press(getByText('Change password'))
-    const { router } = require('expo-router')
-    expect(router.push).toHaveBeenCalledWith('/change-password')
-  })
-
-  // 10. Pressing "Sign out" calls signOut and navigates to /
-  it('calls signOut and navigates to / when Sign out is pressed', async () => {
-    ;(auth.signOut as jest.Mock).mockResolvedValue(undefined)
-    const { getByText } = await renderLoaded(basePrefs)
-
-    await act(async () => {
-      fireEvent.press(getByText('Sign out'))
-    })
-
-    const { router } = require('expo-router')
-    expect(auth.signOut).toHaveBeenCalledTimes(1)
-    expect(router.replace).toHaveBeenCalledWith('/')
-  })
-
-  // 11. Sign-out failure shows Alert with error message
-  it('shows an error Alert when signOut throws', async () => {
-    ;(auth.signOut as jest.Mock).mockRejectedValue(new Error('network error'))
-    const { getByText } = await renderLoaded(basePrefs)
-
-    await act(async () => {
-      fireEvent.press(getByText('Sign out'))
-    })
-
-    expect(alertSpy).toHaveBeenCalledWith('Error', 'Could not sign out. Please try again.')
-  })
-
-  // 12. Pressing "Delete account" shows confirmation Alert
-  it('shows confirmation Alert when Delete account is pressed', async () => {
-    const { getByText } = await renderLoaded(basePrefs)
-    fireEvent.press(getByText('Delete account'))
-
+  it('shows confirmation Alert when "Delete my data" is pressed', async () => {
+    const { getByText } = await renderLoaded()
+    fireEvent.press(getByText('Delete my data'))
     expect(alertSpy).toHaveBeenCalledWith(
-      'Delete account',
-      'This will permanently delete your account and all saved data. This cannot be undone.',
+      'Delete my data',
+      'This will permanently delete your saved address and reminders. This cannot be undone.',
       expect.arrayContaining([
         expect.objectContaining({ text: 'Cancel', style: 'cancel' }),
         expect.objectContaining({ text: 'Delete', style: 'destructive' }),
@@ -211,48 +212,57 @@ describe('AccountTab', () => {
     )
   })
 
-  // 13. Confirming delete calls deleteAccount() and navigates to /
-  it('calls deleteAccount and navigates to / when delete is confirmed', async () => {
-    ;(userApi.deleteAccount as jest.Mock).mockResolvedValue(undefined)
-    ;(auth.signOut as jest.Mock).mockResolvedValue(undefined)
+  it('deleting with no account clears local storage only, then navigates to /', async () => {
+    const { getByText } = await renderLoaded({ auth: noAccount })
+    fireEvent.press(getByText('Delete my data'))
 
-    const { getByText } = await renderLoaded(basePrefs)
-    fireEvent.press(getByText('Delete account'))
-
-    // Grab the onPress from the destructive "Delete" button passed to Alert
-    const alertCall = alertSpy.mock.calls[0]
-    const buttons: Array<{ text: string; style?: string; onPress?: () => Promise<void> }> = alertCall[2]
-    const deleteButton = buttons.find(b => b.text === 'Delete')
-    expect(deleteButton).toBeDefined()
+    const buttons = alertSpy.mock.calls[0][2]
+    const deleteButton = buttons.find((b: any) => b.text === 'Delete')
 
     await act(async () => {
-      await deleteButton!.onPress!()
+      await deleteButton.onPress()
     })
 
+    expect(savedAddress.clearSavedAddress).toHaveBeenCalledTimes(1)
+    expect(userApi.deleteAccount).not.toHaveBeenCalled()
+    expect(auth.signOut).not.toHaveBeenCalled()
     const { router } = require('expo-router')
-    expect(userApi.deleteAccount).toHaveBeenCalledTimes(1)
     expect(router.replace).toHaveBeenCalledWith('/')
   })
 
-  // Bonus: deleteAccount failure shows error Alert
-  it('shows an error Alert when deleteAccount throws', async () => {
-    ;(userApi.deleteAccount as jest.Mock).mockRejectedValue(new Error('rpc error'))
+  it('deleting with an account clears local storage, deletes the account, and signs out', async () => {
+    ;(userApi.deleteAccount as jest.Mock).mockResolvedValue(undefined)
     ;(auth.signOut as jest.Mock).mockResolvedValue(undefined)
+    const { getByText } = await renderLoaded({ auth: withAccount })
+    fireEvent.press(getByText('Delete my data'))
 
-    const { getByText } = await renderLoaded(basePrefs)
-    fireEvent.press(getByText('Delete account'))
+    const buttons = alertSpy.mock.calls[0][2]
+    const deleteButton = buttons.find((b: any) => b.text === 'Delete')
 
-    const alertCall = alertSpy.mock.calls[0]
-    const buttons: Array<{ text: string; style?: string; onPress?: () => Promise<void> }> = alertCall[2]
-    const deleteButton = buttons.find(b => b.text === 'Delete')
+    await act(async () => {
+      await deleteButton.onPress()
+    })
 
-    // Clear the first call so we can assert on the error one
+    expect(savedAddress.clearSavedAddress).toHaveBeenCalledTimes(1)
+    expect(userApi.deleteAccount).toHaveBeenCalledTimes(1)
+    expect(auth.signOut).toHaveBeenCalledTimes(1)
+    const { router } = require('expo-router')
+    expect(router.replace).toHaveBeenCalledWith('/')
+  })
+
+  it('shows an error Alert when deleting fails', async () => {
+    ;(userApi.deleteAccount as jest.Mock).mockRejectedValue(new Error('rpc error'))
+    const { getByText } = await renderLoaded({ auth: withAccount })
+    fireEvent.press(getByText('Delete my data'))
+
+    const buttons = alertSpy.mock.calls[0][2]
+    const deleteButton = buttons.find((b: any) => b.text === 'Delete')
     alertSpy.mockClear()
 
     await act(async () => {
-      await deleteButton!.onPress!()
+      await deleteButton.onPress()
     })
 
-    expect(alertSpy).toHaveBeenCalledWith('Error', 'Could not delete account. Please try again.')
+    expect(alertSpy).toHaveBeenCalledWith('Error', 'Could not delete your data. Please try again.')
   })
 })

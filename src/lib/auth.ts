@@ -1,17 +1,5 @@
 import { supabase } from './supabase'
 
-export async function signUp(email: string, password: string) {
-  return supabase.auth.signUp({
-    email,
-    password,
-    options: { emailRedirectTo: 'whenismy://' },
-  })
-}
-
-export async function signIn(email: string, password: string) {
-  return supabase.auth.signInWithPassword({ email, password })
-}
-
 export async function signOut() {
   return supabase.auth.signOut()
 }
@@ -21,14 +9,16 @@ export async function getSession() {
   return data.session
 }
 
-export async function changePassword(
-  email: string,
-  currentPassword: string,
-  newPassword: string,
-): Promise<{ error: string | null }> {
-  const { error: verifyError } = await supabase.auth.signInWithPassword({ email, password: currentPassword })
-  if (verifyError) return { error: 'Current password is incorrect.' }
-  const { error: updateError } = await supabase.auth.updateUser({ password: newPassword })
-  if (updateError) return { error: updateError.message }
-  return { error: null }
+// The only entry point into a Supabase account. Returns the existing
+// session's user id if one exists, otherwise creates an anonymous session
+// (no email, no password) and returns its user id.
+export async function ensureAnonymousUser(): Promise<string> {
+  const { data } = await supabase.auth.getSession()
+  if (data.session?.user) return data.session.user.id
+
+  const { data: signInData, error } = await supabase.auth.signInAnonymously()
+  if (error || !signInData.user) {
+    throw error ?? new Error('Failed to create anonymous session')
+  }
+  return signInData.user.id
 }

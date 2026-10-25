@@ -1,13 +1,8 @@
 import React from 'react'
 import { render, fireEvent, waitFor } from '@testing-library/react-native'
 import ManualEntryScreen from './manual-entry'
-import { useAuth } from '../src/lib/auth-context'
-import { saveManualSchedules, generateEventsFromManual } from '../src/lib/manual-schedule'
-import { scheduleStore } from '../src/lib/schedule-store'
-
-// ---------------------------------------------------------------------------
-// Module mocks
-// ---------------------------------------------------------------------------
+import { generateEventsFromManual } from '../src/lib/manual-schedule'
+import { saveAddressLocally } from '../src/lib/saved-address'
 
 jest.mock('expo-router', () => ({
   router: { back: jest.fn(), push: jest.fn(), replace: jest.fn() },
@@ -17,28 +12,19 @@ jest.mock('react-native-safe-area-context', () => ({
   SafeAreaView: ({ children }: any) => children,
 }))
 
-jest.mock('../src/lib/auth-context', () => ({
-  useAuth: jest.fn(),
-}))
-
 jest.mock('../src/lib/manual-schedule', () => ({
-  saveManualSchedules: jest.fn().mockResolvedValue({}),
   generateEventsFromManual: jest
     .fn()
     .mockReturnValue([{ date: '2026-06-02', event_type: 'garbage' }]),
 }))
 
-jest.mock('../src/lib/schedule-store', () => ({
-  scheduleStore: { set: jest.fn(), get: jest.fn(), clear: jest.fn() },
+jest.mock('../src/lib/saved-address', () => ({
+  saveAddressLocally: jest.fn().mockResolvedValue(undefined),
 }))
-
-// ---------------------------------------------------------------------------
-// Setup / teardown
-// ---------------------------------------------------------------------------
 
 beforeEach(() => {
   jest.clearAllMocks()
-  ;(useAuth as jest.Mock).mockReturnValue({ user: { id: 'u1' } })
+  ;(generateEventsFromManual as jest.Mock).mockReturnValue([{ date: '2026-06-02', event_type: 'garbage' }])
 })
 
 // ---------------------------------------------------------------------------
@@ -110,15 +96,16 @@ describe('ManualEntryScreen', () => {
     // "Wed" chip is visible; tap it
     fireEvent.press(getByText('Wed'))
 
-    // The save path will use wednesday — verify by checking the schedule passed to saveManualSchedules
+    // The save path will use wednesday — verify by checking the schedule saved locally
     fireEvent.press(getByText('Save my schedule'))
 
     await waitFor(() => {
-      expect(saveManualSchedules).toHaveBeenCalledWith(
-        'u1',
-        expect.arrayContaining([
-          expect.objectContaining({ pickup_day: 'wednesday' }),
-        ])
+      expect(saveAddressLocally).toHaveBeenCalledWith(
+        expect.objectContaining({
+          manualSchedules: expect.arrayContaining([
+            expect.objectContaining({ pickup_day: 'wednesday' }),
+          ]),
+        })
       )
     })
   })
@@ -155,20 +142,19 @@ describe('ManualEntryScreen', () => {
     expect(queryByText(expectedDate)).toBeTruthy()
   })
 
-  // 8. Save with nothing enabled: saveManualSchedules NOT called
-  it('does not call saveManualSchedules when no event types are enabled', async () => {
+  // 8. Save with nothing enabled: saveAddressLocally NOT called
+  it('does not save when no event types are enabled', async () => {
     const { getByText } = renderScreen()
 
     fireEvent.press(getByText('Save my schedule'))
 
-    // Give any microtasks a chance to flush
     await waitFor(() => {
-      expect(saveManualSchedules).not.toHaveBeenCalled()
+      expect(saveAddressLocally).not.toHaveBeenCalled()
     })
   })
 
   // 9. Save with garbage enabled (weekly, Monday): correct call + router.replace
-  it('calls saveManualSchedules with correct input and navigates when garbage is enabled', async () => {
+  it('saves locally with correct input and navigates when garbage is enabled', async () => {
     const { getByText } = renderScreen()
 
     fireEvent.press(getByText('Garbage'))
@@ -176,36 +162,31 @@ describe('ManualEntryScreen', () => {
     fireEvent.press(getByText('Save my schedule'))
 
     await waitFor(() => {
-      expect(saveManualSchedules).toHaveBeenCalledWith('u1', [
-        {
-          event_type: 'garbage',
-          pickup_day: 'monday',
-          frequency: 'weekly',
-          anchor_date: null,
+      expect(saveAddressLocally).toHaveBeenCalledWith({
+        street: 'manual',
+        city: '',
+        state: '',
+        place: {
+          address_key: 'manual||',
+          recollect_place_id: null,
+          latitude: null,
+          longitude: null,
+          timezone: null,
+          supported_event_types: ['garbage'],
+          provider: null,
         },
-      ])
+        events: [{ date: '2026-06-02', event_type: 'garbage' }],
+        manualSchedules: [
+          { event_type: 'garbage', pickup_day: 'monday', frequency: 'weekly', anchor_date: null },
+        ],
+      })
     })
 
     const { router } = require('expo-router')
     expect(router.replace).toHaveBeenCalledWith('/(tabs)/schedule')
   })
 
-  // 10. Save when user is null: router.push('/sign-in'), saveManualSchedules NOT called
-  it('redirects to /sign-in and skips save when user is null', async () => {
-    ;(useAuth as jest.Mock).mockReturnValue({ user: null })
-
-    const { getByText } = renderScreen()
-    fireEvent.press(getByText('Garbage'))
-    fireEvent.press(getByText('Save my schedule'))
-
-    await waitFor(() => {
-      const { router } = require('expo-router')
-      expect(router.push).toHaveBeenCalledWith('/sign-in')
-    })
-    expect(saveManualSchedules).not.toHaveBeenCalled()
-  })
-
-  // 11. "← Back" calls router.back()
+  // 10. "← Back" calls router.back()
   it('calls router.back() when the back link is pressed', () => {
     const { getByText } = renderScreen()
     fireEvent.press(getByText('← Back'))
@@ -213,12 +194,12 @@ describe('ManualEntryScreen', () => {
     expect(router.back).toHaveBeenCalledTimes(1)
   })
 
-  // 12. Save failure: shows Alert, does not navigate, spinner clears
-  it('shows an error alert and clears the spinner when saveManualSchedules throws', async () => {
+  // 11. Save failure: shows Alert, does not navigate, spinner clears
+  it('shows an error alert and clears the spinner when saving fails', async () => {
     const alertSpy = jest.spyOn(require('react-native').Alert, 'alert')
-    ;(saveManualSchedules as jest.Mock).mockRejectedValueOnce(new Error('network error'))
+    ;(saveAddressLocally as jest.Mock).mockRejectedValueOnce(new Error('storage error'))
 
-    const { getByText, queryByTestId } = renderScreen()
+    const { getByText } = renderScreen()
     fireEvent.press(getByText('Garbage'))
     fireEvent.press(getByText('Save my schedule'))
 

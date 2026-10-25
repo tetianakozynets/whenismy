@@ -3,27 +3,32 @@ import { render, fireEvent, waitFor } from '@testing-library/react-native'
 import HomeScreen from './index'
 import * as api from '../src/lib/api'
 import { scheduleStore } from '../src/lib/schedule-store'
+import { getSavedAddress } from '../src/lib/saved-address'
 
 jest.mock('expo-router', () => ({
   router: { push: jest.fn(), back: jest.fn(), replace: jest.fn() },
+  Redirect: ({ href }: { href: string }) => {
+    const { Text } = require('react-native')
+    return <Text testID="redirect">{href}</Text>
+  },
+  useFocusEffect: (cb: () => void) => { cb() },
 }))
 
-jest.mock('../src/lib/auth-context', () => ({
-  useAuth: () => ({ user: null, session: null, loading: false }),
-}))
-
-jest.mock('../src/lib/user-api', () => ({
-  saveAddress: jest.fn().mockResolvedValue({}),
-  savePickupEvents: jest.fn().mockResolvedValue({}),
-  getPreferences: jest.fn().mockResolvedValue(null),
-  updateNotificationPreferences: jest.fn().mockResolvedValue({}),
-  deleteAccount: jest.fn().mockResolvedValue({}),
+jest.mock('../src/lib/saved-address', () => ({
+  getSavedAddress: jest.fn(),
 }))
 
 jest.mock('../src/lib/use-split-layout', () => ({
   useSplitLayout: jest.fn().mockReturnValue(false),
 }))
 
+jest.mock('../src/lib/auth-context', () => ({
+  useAuth: () => ({ user: null, session: null, loading: false }),
+}))
+
+jest.mock('../src/lib/enable-reminders', () => ({
+  enableRemindersForAddress: jest.fn().mockResolvedValue(undefined),
+}))
 
 jest.spyOn(api, 'lookupSchedule')
 
@@ -43,13 +48,24 @@ const mockResult = {
 beforeEach(() => {
   jest.clearAllMocks()
   scheduleStore.clear()
+  ;(getSavedAddress as jest.Mock).mockResolvedValue(null)
   const { useSplitLayout } = require('../src/lib/use-split-layout')
   useSplitLayout.mockReturnValue(false)
 })
 
+it('redirects to the schedule tab when an address is already saved locally', async () => {
+  ;(getSavedAddress as jest.Mock).mockResolvedValue({
+    street: '1 Main St', city: 'Mahwah', state: 'NJ',
+    place: mockResult.place, events: mockResult.events, savedAt: new Date().toISOString(),
+  })
+  const { findByTestId } = render(<HomeScreen />)
+  expect(await findByTestId('redirect')).toHaveTextContent('/(tabs)/schedule')
+})
+
 it('navigates to /schedule and saves result to store on success (narrow)', async () => {
   ;(api.lookupSchedule as jest.Mock).mockResolvedValueOnce(mockResult)
-  const { getByTestId } = render(<HomeScreen />)
+  const { findByTestId, getByTestId } = render(<HomeScreen />)
+  await findByTestId('input-street')
   fireEvent.changeText(getByTestId('input-street'), '123 Main St')
   fireEvent.changeText(getByTestId('input-city'), 'Springfield')
   // NJ is pre-selected by default
@@ -67,7 +83,8 @@ it('shows not-found error inline when address is not found', async () => {
     error: 'Address not found',
     notFound: true,
   })
-  const { getByTestId, findByText } = render(<HomeScreen />)
+  const { findByTestId, getByTestId, findByText } = render(<HomeScreen />)
+  await findByTestId('input-street')
   fireEvent.changeText(getByTestId('input-street'), '99 Unknown')
   fireEvent.changeText(getByTestId('input-city'), 'Nowhere')
   fireEvent.press(getByTestId('submit-button'))
@@ -81,8 +98,8 @@ it('does not navigate on success when in split layout (wide screen)', async () =
   const { useSplitLayout } = require('../src/lib/use-split-layout')
   useSplitLayout.mockReturnValue(true)
   ;(api.lookupSchedule as jest.Mock).mockResolvedValueOnce(mockResult)
-  const { getByTestId } = render(<HomeScreen />)
-  // NJ is pre-selected by default
+  const { findByTestId, getByTestId } = render(<HomeScreen />)
+  await findByTestId('input-street')
   fireEvent.changeText(getByTestId('input-street'), '123 Main St')
   fireEvent.changeText(getByTestId('input-city'), 'Springfield')
   fireEvent.press(getByTestId('submit-button'))

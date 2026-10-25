@@ -9,7 +9,14 @@ module.exports = {
   testPathIgnorePatterns: [
     '/node_modules/',
     '/supabase/',
-    '/.worktrees/',
+    // Anchored to <rootDir> so this only excludes worktrees NESTED under the
+    // directory jest is run from (the intended case: running from the repo
+    // root shouldn't double-run tests inside .worktrees/*). An unanchored
+    // '/.worktrees/' also matches jest's own rootDir when run from INSIDE a
+    // worktree (e.g. .worktrees/<name>), since that path is a substring of
+    // every test file's absolute path — which excludes every test and
+    // reports "no tests found".
+    '<rootDir>/\\.worktrees/',
   ],
   moduleNameMapper: {
     '^@react-native-async-storage/async-storage$':
