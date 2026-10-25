@@ -27,7 +27,7 @@ export default function ScheduleTab() {
 
     // Manual schedules have no live source to refresh against — the
     // locally generated events are the source of truth.
-    if (addr.manualSchedules || !isStale(addr.savedAt)) {
+    if (addr.manualSchedules || addr.place.provider === 'recollect-ical' || !isStale(addr.savedAt)) {
       setResult({ place: addr.place, events: addr.events })
       return
     }

@@ -21,7 +21,16 @@ export async function getSavedAddress(): Promise<SavedAddress | null> {
   const raw = await AsyncStorage.getItem(STORAGE_KEY)
   if (!raw) return null
   try {
-    return JSON.parse(raw) as SavedAddress
+    const parsed = JSON.parse(raw)
+    if (
+      typeof parsed?.street !== 'string' ||
+      typeof parsed?.city !== 'string' ||
+      typeof parsed?.state !== 'string' ||
+      !Array.isArray(parsed?.events)
+    ) {
+      return null
+    }
+    return parsed as SavedAddress
   } catch {
     return null
   }

@@ -56,7 +56,7 @@ export function ScheduleContent({ result, onBack, address, showBack = true, save
     )
   }
 
-  const [addrStreet, addrCity, addrState] = (place.address_key || '||').split('|')
+  const [addrStreet = '', addrCity = '', addrState = ''] = (place.address_key || '||').split('|')
   const isCurrentAddressSaved = savedAddress !== undefined && (
     savedAddress.street.toLowerCase().trim() === addrStreet.toLowerCase().trim() &&
     savedAddress.city.toLowerCase().trim() === addrCity.toLowerCase().trim() &&

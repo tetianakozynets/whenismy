@@ -50,6 +50,15 @@ it('shows the Save banner when the address is not saved, with no account require
   expect(await findByText('Save as my address')).toBeTruthy()
 })
 
+it('does not crash on an iCal-shaped address_key with no pipe delimiters', async () => {
+  const icalResult = {
+    place: { ...place, address_key: 'ical:12345:67', provider: 'recollect-ical' as const },
+    events,
+  }
+  const { findByText } = render(<ScheduleContent result={icalResult} onBack={jest.fn()} />)
+  expect(await findByText('Save as my address')).toBeTruthy()
+})
+
 it('hides the Save banner once the address matches savedAddress', async () => {
   const { queryByText, findByText } = render(
     <ScheduleContent

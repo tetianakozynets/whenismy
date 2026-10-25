@@ -47,6 +47,11 @@ it('returns null when stored JSON is corrupted', async () => {
   expect(await getSavedAddress()).toBeNull()
 })
 
+it('returns null when a stored record is missing required string fields', async () => {
+  await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify({ street: 'x', events: [] })) // missing city/state
+  expect(await getSavedAddress()).toBeNull()
+})
+
 it('round-trips manualSchedules when present', async () => {
   const manualSchedules: ManualScheduleInput[] = [
     { event_type: 'garbage', pickup_day: 'monday', frequency: 'weekly', anchor_date: null },
