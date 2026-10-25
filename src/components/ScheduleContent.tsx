@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { View, Text, ScrollView, Pressable, StyleSheet, useWindowDimensions, Platform } from 'react-native'
+import { View, Text, ScrollView, Pressable, StyleSheet, useWindowDimensions, Platform, Alert } from 'react-native'
 import { router } from 'expo-router'
 import { LookupResponse, PickupEvent } from '../lib/types'
 import { NextPickupCard } from './NextPickupCard'
@@ -10,6 +10,8 @@ import { getUSHolidays, todayHolidayNote, HolidayMap } from '../lib/holidays'
 import { colors, spacing, radius, SPLIT_BREAKPOINT } from '../constants/theme'
 import { useAuth } from '../lib/auth-context'
 import { SaveAddressBanner } from './SaveAddressBanner'
+import { saveAddressLocally } from '../lib/saved-address'
+import { enableRemindersForAddress } from '../lib/enable-reminders'
 
 interface Props {
   result: LookupResponse
@@ -34,6 +36,7 @@ export function ScheduleContent({ result, onBack, address, showBack = true, save
   const [showAll, setShowAll] = useState(false)
   const [showCalendar, setShowCalendar] = useState(false)
   const [holidays, setHolidays] = useState<HolidayMap>(new Map())
+  const [enablingReminders, setEnablingReminders] = useState(false)
   const { user } = useAuth()
   const { width } = useWindowDimensions()
   const isWide = width >= SPLIT_BREAKPOINT
@@ -59,6 +62,20 @@ export function ScheduleContent({ result, onBack, address, showBack = true, save
     savedAddress.city.toLowerCase().trim() === addrCity.toLowerCase().trim() &&
     savedAddress.state.toLowerCase().trim() === addrState.toLowerCase().trim()
   )
+
+  async function handleEnableReminders() {
+    setEnablingReminders(true)
+    try {
+      await saveAddressLocally({ street: addrStreet, city: addrCity, state: addrState, place, events })
+      await enableRemindersForAddress(addrStreet, addrCity, addrState, place, events)
+      router.push('/notifications')
+    } catch {
+      Alert.alert('Error', 'Could not turn on reminders. Please try again.')
+    } finally {
+      setEnablingReminders(false)
+    }
+  }
+
   const grouped = groupByDate(events)
   const dates = Array.from(grouped.keys())
 
@@ -102,9 +119,8 @@ export function ScheduleContent({ result, onBack, address, showBack = true, save
       )}
       {address ? <Text style={styles.addressLabel}>{address}</Text> : null}
       <NextPickupCard events={firstDayEvents} todayNote={todayHolidayNote(holidays)} skippedHoliday={skippedHoliday} />
-      {user && !isCurrentAddressSaved && (
+      {!isCurrentAddressSaved && (
         <SaveAddressBanner
-          userId={user.id}
           street={addrStreet}
           city={addrCity}
           state={addrState}
@@ -157,11 +173,12 @@ export function ScheduleContent({ result, onBack, address, showBack = true, save
       {!user && Platform.OS !== 'web' && (
         <Pressable
           style={styles.upsellBanner}
-          onPress={() => router.push('/sign-in')}
+          onPress={handleEnableReminders}
+          disabled={enablingReminders}
           accessibilityRole="button"
         >
           <Text style={styles.upsellText}>
-            Get reminders the night before pickup — Sign in →
+            {enablingReminders ? 'Turning on reminders…' : 'Get reminders the night before pickup →'}
           </Text>
         </Pressable>
       )}
